@@ -1,17 +1,19 @@
 /**
- * meva demo recorder — drives the live demo and records a clean walkthrough
- * video (no shaky cursor, controlled pacing) for the landing page.
+ * meva demo recorder — drives the live demo and records a short, punchy
+ * walkthrough video (~10s) for the landing page. Smooth guide-cursor,
+ * controlled pacing, repeatable, always in sync with the app.
  *
  * Setup (one time):
- *   npm i -D playwright
+ *   npm i -D playwright            # already a devDependency
  *   npx playwright install chromium
  *
  * Run:
- *   node scripts/demo-video.mjs                 # records the live Pages demo
- *   DEMO_URL=http://localhost:3000 node scripts/demo-video.mjs   # local demo
+ *   node scripts/demo-video.mjs                                   # live Pages demo
+ *   DEMO_URL=http://localhost:3000 node scripts/demo-video.mjs    # local demo
+ *   PACE=0.8 node scripts/demo-video.mjs                          # 20% faster
  *
- * Output: scripts/out/meva-demo.webm  (+ meva-demo.mp4 if ffmpeg is installed).
- * Embed the mp4 on the landing with <video autoplay muted loop playsinline>.
+ * Output: scripts/out/meva-demo.webm  (+ meva-demo.mp4, hard-capped at MAX_SECONDS).
+ * Embed: <video src="/meva-demo.mp4" autoplay muted loop playsinline>
  */
 
 import { chromium } from "playwright";
@@ -23,13 +25,14 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(__dirname, "out");
 const BASE = (process.env.DEMO_URL ?? "https://annamatveev.github.io/meva").replace(/\/$/, "");
+const PACE = Number(process.env.PACE ?? 1); // global timing multiplier
+const MAX_SECONDS = Number(process.env.MAX_SECONDS ?? 10); // hard cap on the mp4
 
 const WIDTH = 1280;
 const HEIGHT = 800;
 
-const wait = (page, ms) => page.waitForTimeout(ms);
+const wait = (page, ms) => page.waitForTimeout(Math.round(ms * PACE));
 
-// Inject a smooth guide cursor so viewers can follow the clicks.
 async function ensureCursor(page) {
   await page.evaluate(() => {
     if (document.getElementById("__cursor")) return;
@@ -40,7 +43,7 @@ async function ensureCursor(page) {
       background: "rgba(76,99,182,0.9)", boxShadow: "0 0 0 5px rgba(76,99,182,0.22)",
       zIndex: "99999", pointerEvents: "none", transform: "translate(-50%,-50%)",
       left: "50%", top: "42%", opacity: "0",
-      transition: "left .65s cubic-bezier(.22,.61,.36,1), top .65s cubic-bezier(.22,.61,.36,1), opacity .3s",
+      transition: "left .35s cubic-bezier(.22,.61,.36,1), top .35s cubic-bezier(.22,.61,.36,1), opacity .2s",
     });
     document.body.appendChild(c);
   });
@@ -48,34 +51,32 @@ async function ensureCursor(page) {
 
 async function glide(page, locator) {
   const box = await locator.first().boundingBox();
-  if (!box) return null;
+  if (!box) return;
   const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;
   await page.evaluate(({ x, y }) => {
     const c = document.getElementById("__cursor");
     if (c) { c.style.opacity = "1"; c.style.left = x + "px"; c.style.top = y + "px"; }
   }, { x, y });
-  await wait(page, 750);
-  return { x, y };
+  await wait(page, 380);
 }
 
-async function smoothScrollTo(page, y) {
+async function scrollTo(page, y) {
   await page.evaluate((y) => window.scrollTo({ top: y, behavior: "smooth" }), y);
-  await wait(page, 1100);
+  await wait(page, 550);
 }
 
-async function step(page, locator, { hover = false, click = false } = {}) {
+async function step(page, locator, { hover = false, click = false, dwell = 600 } = {}) {
   await ensureCursor(page);
   const loc = locator.first();
   try {
     await loc.scrollIntoViewIfNeeded();
-    await wait(page, 300);
     await glide(page, loc);
     if (hover) await loc.hover();
     if (click) await loc.click();
-    await wait(page, 900);
+    await wait(page, dwell);
   } catch (e) {
-    console.warn("  (skipped a step:", e.message.split("\n")[0], ")");
+    console.warn("  (skipped:", e.message.split("\n")[0], ")");
   }
 }
 
@@ -88,81 +89,56 @@ async function main() {
     recordVideo: { dir: OUT, size: { width: WIDTH, height: HEIGHT } },
   });
   const page = await context.newPage();
+  console.log("Recording ~", MAX_SECONDS, "s walkthrough of", BASE);
 
-  console.log("Recording walkthrough of", BASE);
-
-  // 1. Dashboard
+  // Tight 5-beat story: see the queue -> review a change -> approve -> published.
   await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
   await ensureCursor(page);
-  await wait(page, 2000);
-  await smoothScrollTo(page, 220); // context-health stats
-  await wait(page, 1200);
+  await wait(page, 1100);
 
-  // 2. Open a change request
-  await step(page, page.getByText("Tighten digital refund window", { exact: false }), { click: true });
+  // 1. Open a change request
+  await step(page, page.getByText("Tighten digital refund window", { exact: false }), { click: true, dwell: 300 });
   await page.waitForLoadState("networkidle");
   await ensureCursor(page);
-  await wait(page, 1500);
+  await wait(page, 500);
 
-  // 3. The semantic diff — hover a line to reveal attribution
-  await step(page, page.getByText("Digital goods are refundable", { exact: false }), { hover: true });
-  await wait(page, 1800);
-  await smoothScrollTo(page, 320);
-  await wait(page, 1200);
+  // 2. The semantic diff — hover to reveal attribution
+  await step(page, page.getByText("Digital goods are refundable", { exact: false }), { hover: true, dwell: 1200 });
 
-  // 4. Blast radius + evals (the review aside)
-  await step(page, page.getByText("Blast radius", { exact: false }), { hover: true });
-  await wait(page, 1600);
-  await step(page, page.getByText("Context evals", { exact: false }), { hover: true });
-  await wait(page, 1600);
+  // 3. Evals (the gate)
+  await step(page, page.getByText("Context evals", { exact: false }), { hover: true, dwell: 900 });
 
-  // 5. Acknowledge + approve
+  // 4. Approve
   try {
     const ack = page.getByRole("checkbox").first();
-    if (await ack.isVisible()) { await glide(page, ack); await ack.check(); await wait(page, 700); }
+    if (await ack.isVisible()) { await glide(page, ack); await ack.check(); }
   } catch {}
-  await step(page, page.getByRole("button", { name: /Approve/ }), { click: true });
-  await wait(page, 1600);
+  await step(page, page.getByRole("button", { name: /Approve/ }), { click: true, dwell: 900 });
 
-  // 6. Governance
-  await step(page, page.getByRole("link", { name: "Governance" }), { click: true });
+  // 5. Published to agents
+  await step(page, page.getByRole("link", { name: "Distribution" }), { click: true, dwell: 300 });
   await page.waitForLoadState("networkidle");
   await ensureCursor(page);
-  await wait(page, 1800);
-  await smoothScrollTo(page, 260);
   await wait(page, 1600);
-
-  // 7. Distribution
-  await step(page, page.getByRole("link", { name: "Distribution" }), { click: true });
-  await page.waitForLoadState("networkidle");
-  await ensureCursor(page);
-  await wait(page, 1800);
-  await smoothScrollTo(page, 220);
-  await wait(page, 1600);
-
-  // 8. A beat of dark mode for flair
-  await step(page, page.getByRole("button", { name: /Switch to dark theme/i }), { click: true });
-  await wait(page, 2200);
 
   await context.close();
   await browser.close();
 
-  // Find the produced webm and normalize the name.
   const files = (await fs.readdir(OUT)).filter((f) => f.endsWith(".webm"));
   const latest = files.map((f) => path.join(OUT, f)).sort()[files.length - 1];
   const webm = path.join(OUT, "meva-demo.webm");
   if (latest && latest !== webm) await fs.rename(latest, webm);
-  console.log("✓ Recorded", webm);
+  console.log("done:", webm);
 
-  // Convert to mp4 if ffmpeg is available.
+  // Convert + hard-cap at MAX_SECONDS so the landing clip is never longer.
   const mp4 = path.join(OUT, "meva-demo.mp4");
   const ff = spawnSync("ffmpeg", [
-    "-y", "-i", webm, "-vf", "scale=1280:-2",
+    "-y", "-i", webm, "-t", String(MAX_SECONDS), "-vf", "scale=1280:-2",
     "-c:v", "libx264", "-crf", "26", "-preset", "slow", "-an",
     "-movflags", "+faststart", mp4,
   ], { stdio: "inherit" });
-  if (ff.status === 0) console.log("✓ Converted", mp4);
-  else console.log("ffmpeg not found — embed the .webm, or convert it manually.");
+  if (ff.status === 0) console.log(`done: ${mp4} (<= ${MAX_SECONDS}s)`);
+  else console.log("ffmpeg not found - convert/trim the .webm manually (target <= " + MAX_SECONDS + "s).");
 }
 
 main().catch((err) => {
