@@ -9,8 +9,10 @@ import { Router } from "express";
 import { z } from "zod";
 import type { WorkspaceInfo } from "@context-studio/types";
 import type { WorkspaceManager } from "../services/WorkspaceManager.js";
+import type { AuthService } from "../services/AuthService.js";
+import { requirePermission } from "./guard.js";
 
-export function createWorkspaceRouter(wm: WorkspaceManager): Router {
+export function createWorkspaceRouter(wm: WorkspaceManager, auth: AuthService): Router {
   const router = Router();
 
   const toInfo = (): WorkspaceInfo => {
@@ -37,6 +39,8 @@ export function createWorkspaceRouter(wm: WorkspaceManager): Router {
   });
 
   router.post("/", async (req, res) => {
+    const me = await requirePermission(auth, req, res, "configureWorkspace");
+    if (!me) return;
     const parsed = configureSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.flatten() });

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Attribution, DocumentView } from "@context-studio/types";
 import { autosaveDoc, exportUrls, proposeChange } from "@/lib/api";
 import { parseBlocks, blockKey } from "@/lib/blocks";
-import { getSession } from "@/lib/auth";
+import { authHeaders, getSession } from "@/lib/auth";
 import { AuthorBadge, relativeTime } from "@/components/cpr/ui";
 
 type Mode = "write" | "preview";
@@ -29,11 +29,14 @@ export function Editor({ doc }: { doc: DocumentView }) {
   const save = useCallback(async (text: string) => {
     setSaveState("saving");
     try {
-      const res = await autosaveDoc({
-        documentPath: doc.documentPath,
-        content: text,
-        authorId: getSession()?.user.id ?? "user-dana",
-      });
+      const res = await autosaveDoc(
+        {
+          documentPath: doc.documentPath,
+          content: text,
+          authorId: getSession()?.user.id ?? "user-dana",
+        },
+        authHeaders(),
+      );
       setDraftPrId(res.draftPrId);
       setSaveState("saved");
     } catch {
@@ -243,7 +246,7 @@ function ProposeDialog({
     setBusy(true);
     setError(null);
     try {
-      const { prId } = await proposeChange({ draftPrId, title, description });
+      const { prId } = await proposeChange({ draftPrId, title, description }, authHeaders());
       onProposed(prId);
     } catch {
       setError("Failed to propose the change.");

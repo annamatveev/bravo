@@ -25,6 +25,7 @@ import { EvalService } from "../services/EvalService.js";
 import { DistributionService } from "../services/DistributionService.js";
 import type { SigningService } from "../services/SigningService.js";
 import { AuthService, bearer } from "../services/AuthService.js";
+import { requirePermission } from "./guard.js";
 import { notify } from "../lib/notify.js";
 import type { WorkspaceManager } from "../services/WorkspaceManager.js";
 
@@ -93,13 +94,11 @@ export function createPrRouter(
     const ctx = requireWorkspace(wm, res);
     if (!ctx) return;
 
-    // The acting reviewer is derived from the session — you can only act as
-    // yourself, never via a reviewerId in the body.
-    const reviewerId = await auth.verifySession(bearer(req.headers.authorization), Date.now());
-    if (!reviewerId) {
-      res.status(401).json({ error: "Sign in to review." });
-      return;
-    }
+    // Must hold the `approve` permission AND be a reviewer on this PR. The
+    // acting reviewer is the session identity — you can only act as yourself.
+    const me = await requirePermission(auth, req, res, "approve");
+    if (!me) return;
+    const reviewerId = me.id;
     const onPr = await db.reviewer.findFirst({
       where: { prId: req.params.id, authorId: reviewerId },
     });

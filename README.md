@@ -48,8 +48,10 @@ every autosave into one semantic commit on `main` and deletes the branch.
   verifies signature + digests against a pinned key, and atomically swaps.
 
 **Module 7 — Auth & permissions** (`/login`):
-- Token sessions for human reviewers (no passwords) + hashed agent API keys.
-  The acting reviewer comes from the session; agents can't be impersonated.
+- **Google SSO** (OIDC) when configured, else a local pick-user login.
+- **Roles**: Owner (everything), Reviewer (propose + approve), Viewer (read-only);
+  agents propose-only via API key. Writes/merges are gated by role; the acting
+  identity comes from the session. See [docs/google-sso-setup.md](docs/google-sso-setup.md).
 
 **Module 8 — Evals-as-publish-gate** (on the CPR screen):
 - Context-regression evals in `.contextstudio.yml`; failing evals block approval.

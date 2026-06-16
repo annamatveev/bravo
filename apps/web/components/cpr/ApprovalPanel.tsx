@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ApprovalAction, ContextPR, SessionUser } from "@context-studio/types";
+import { type ApprovalAction, type ContextPR, type SessionUser, can } from "@context-studio/types";
 import { submitApproval } from "@/lib/api";
 import { authHeaders, getSession } from "@/lib/auth";
 import { AuthorBadge } from "./ui";
@@ -31,7 +31,8 @@ export function ApprovalPanel({ pr }: { pr: ContextPR }) {
 
   const isHighBlast = pr.blastRadius.maxSeverity === "high";
   const isTerminal = pr.status === "merged" || pr.status === "rejected";
-  const isReviewer = !!user && pr.reviewers.some((r) => r.author.id === user.id);
+  const isReviewer =
+    !!user && can(user.accessRole, "approve") && pr.reviewers.some((r) => r.author.id === user.id);
 
   const approvalsMet = useMemo(
     () => requiredReviewers.every((r) => r.decision === "approved"),

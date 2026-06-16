@@ -21,6 +21,13 @@ services:
       CONTEXT_SIGNING_DIR: "/data/.signing"
       # SEED: "0"   # uncomment to skip first-boot demo seeding
       # CONTEXT_WEBHOOK_URL: "https://hooks.slack.com/services/…"  # event notifications (Slack or any endpoint)
+      # --- Google SSO + roles (optional) ---
+      # GOOGLE_CLIENT_ID: "…apps.googleusercontent.com"
+      # GOOGLE_CLIENT_SECRET: "…"
+      # GOOGLE_REDIRECT_URI: "http://localhost:4000/api/context/auth/google/callback"
+      # WEB_BASE_URL: "http://localhost:3000"
+      # CONTEXT_OWNER_EMAILS: "you@yourco.com,teammate@yourco.com"
+      # CONTEXT_DEFAULT_ROLE: "reviewer"   # role for non-owners on first sign-in
     volumes:
       - cs-data:/data
     healthcheck:

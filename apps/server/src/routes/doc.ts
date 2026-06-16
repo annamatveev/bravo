@@ -15,6 +15,8 @@ import {
   DocService,
   DraftNotFoundError,
 } from "../services/DocService.js";
+import type { AuthService } from "../services/AuthService.js";
+import { requirePermission } from "./guard.js";
 import type { WorkspaceManager } from "../services/WorkspaceManager.js";
 
 function requireWorkspace(wm: WorkspaceManager, res: Response) {
@@ -26,7 +28,7 @@ function requireWorkspace(wm: WorkspaceManager, res: Response) {
   return ctx;
 }
 
-export function createDocRouter(wm: WorkspaceManager): Router {
+export function createDocRouter(wm: WorkspaceManager, auth: AuthService): Router {
   const router = Router();
   const service = (wmCtx: ReturnType<WorkspaceManager["current"]>) =>
     new DocService(wmCtx!.git, wmCtx!.agents);
@@ -61,13 +63,16 @@ export function createDocRouter(wm: WorkspaceManager): Router {
   router.post("/autosave", async (req, res) => {
     const ctx = requireWorkspace(wm, res);
     if (!ctx) return;
+    const me = await requirePermission(auth, req, res, "propose");
+    if (!me) return;
     const parsed = autosaveSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.flatten() });
       return;
     }
     try {
-      res.json(await service(ctx).autosave(parsed.data));
+      // Author the draft as the signed-in user, not whatever the body claims.
+      res.json(await service(ctx).autosave({ ...parsed.data, authorId: me.id }));
     } catch (err) {
       if (err instanceof DraftNotFoundError) {
         res.status(404).json({ error: err.message });
@@ -87,6 +92,8 @@ export function createDocRouter(wm: WorkspaceManager): Router {
   router.post("/propose", async (req, res) => {
     const ctx = requireWorkspace(wm, res);
     if (!ctx) return;
+    const me = await requirePermission(auth, req, res, "propose");
+    if (!me) return;
     const parsed = proposeSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.flatten() });

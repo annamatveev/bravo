@@ -25,6 +25,9 @@ export function UserMenu() {
   return (
     <div className="flex items-center gap-2 text-sm">
       <span className="text-muted">{user.name}</span>
+      <span className="rounded bg-surface2 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted">
+        {user.accessRole}
+      </span>
       <button
         onClick={() => {
           clearSession();

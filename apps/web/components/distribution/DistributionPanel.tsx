@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { DistributionStatus } from "@context-studio/types";
 import { getDistribution, publishDistribution } from "@/lib/api";
+import { authHeaders } from "@/lib/auth";
 import { Hint } from "@/components/ui/Tooltip";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 
@@ -19,7 +20,7 @@ export function DistributionPanel() {
     setBusy(true);
     setError(null);
     try {
-      setStatus(await publishDistribution());
+      setStatus(await publishDistribution(authHeaders()));
     } catch (e) {
       setError(String((e as Error).message ?? e));
     } finally {

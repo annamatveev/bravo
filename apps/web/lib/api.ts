@@ -1,6 +1,7 @@
 import type {
   ApprovalAction,
   ApprovalResponse,
+  AuthConfig,
   AutosaveResponse,
   LoginResponse,
   SessionUser,
@@ -53,13 +54,14 @@ export async function getWorkspace(): Promise<WorkspaceInfo> {
   return (await res.json()) as WorkspaceInfo;
 }
 
-/** Bind to an external context store (client-side). */
+/** Bind to an external context store (client-side; requires Owner). */
 export async function configureWorkspace(
   body: ConfigureWorkspaceBody,
+  authHeader: Record<string, string>,
 ): Promise<{ ok: true; data: WorkspaceInfo } | { ok: false; error: string }> {
   const res = await fetch(`${apiBase()}/api/context/workspace`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeader },
     body: JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({}));
@@ -108,15 +110,14 @@ export async function getDocumentView(
   return (await res.json()) as DocumentView;
 }
 
-/** Transparent autosave (client-side). */
-export async function autosaveDoc(body: {
-  documentPath: string;
-  content: string;
-  authorId: string;
-}): Promise<AutosaveResponse> {
+/** Transparent autosave (client-side, requires the `propose` permission). */
+export async function autosaveDoc(
+  body: { documentPath: string; content: string; authorId: string },
+  authHeader: Record<string, string>,
+): Promise<AutosaveResponse> {
   const res = await fetch(`${apiBase()}/api/context/doc/autosave`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeader },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Autosave failed: ${res.status}`);
@@ -124,14 +125,13 @@ export async function autosaveDoc(body: {
 }
 
 /** Promote a draft into an in-review Context PR (client-side). */
-export async function proposeChange(body: {
-  draftPrId: string;
-  title: string;
-  description: string;
-}): Promise<{ prId: string }> {
+export async function proposeChange(
+  body: { draftPrId: string; title: string; description: string },
+  authHeader: Record<string, string>,
+): Promise<{ prId: string }> {
   const res = await fetch(`${apiBase()}/api/context/doc/propose`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeader },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Propose failed: ${res.status}`);
@@ -145,9 +145,14 @@ export async function getDistribution(): Promise<DistributionStatus> {
   return (await res.json()) as DistributionStatus;
 }
 
-/** Re-publish signed per-agent slices (client-side). */
-export async function publishDistribution(): Promise<DistributionStatus> {
-  const res = await fetch(`${apiBase()}/api/context/distribution/publish`, { method: "POST" });
+/** Re-publish signed per-agent slices (client-side; requires Owner). */
+export async function publishDistribution(
+  authHeader: Record<string, string>,
+): Promise<DistributionStatus> {
+  const res = await fetch(`${apiBase()}/api/context/distribution/publish`, {
+    method: "POST",
+    headers: { ...authHeader },
+  });
   if (!res.ok) throw new Error(`Publish failed: ${res.status}`);
   return (await res.json()) as DistributionStatus;
 }
@@ -160,7 +165,27 @@ export const exportUrls = {
 
 // --- Auth (Module 7) -----------------------------------------------------
 
-/** Selectable human identities for the login picker. */
+/** Which login methods the server offers. */
+export async function getAuthConfig(): Promise<AuthConfig> {
+  const res = await fetch(`${apiBase()}/api/context/auth/config`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to load auth config: ${res.status}`);
+  return (await res.json()) as AuthConfig;
+}
+
+/** Resolve the current session from a token (used after the SSO redirect). */
+export async function getMe(token: string): Promise<SessionUser> {
+  const res = await fetch(`${apiBase()}/api/context/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Not authenticated: ${res.status}`);
+  return ((await res.json()) as { user: SessionUser }).user;
+}
+
+/** Browser-facing URL that starts the Google SSO flow. */
+export const googleLoginUrl = `${API_BASE}/api/context/auth/google/login`;
+
+/** Selectable human identities for the login picker (dev fallback). */
 export async function getUsers(): Promise<SessionUser[]> {
   const res = await fetch(`${apiBase()}/api/context/auth/users`, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to load users: ${res.status}`);

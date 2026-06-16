@@ -27,12 +27,12 @@ async function main() {
 
   app.get("/health", (_req, res) => res.json({ ok: true }));
   app.use("/api/context/auth", createAuthRouter(auth));
-  app.use("/api/context/workspace", createWorkspaceRouter(wm));
+  app.use("/api/context/workspace", createWorkspaceRouter(wm, auth));
   app.use("/api/context/pr", createPrRouter(wm, signing, auth));
   app.use("/api/context/governance", createGovernanceRouter(wm));
-  app.use("/api/context/doc", createDocRouter(wm));
+  app.use("/api/context/doc", createDocRouter(wm, auth));
   app.use("/api/context/export", createExportRouter(wm));
-  app.use("/api/context/distribution", createDistributionRouter(wm, signing));
+  app.use("/api/context/distribution", createDistributionRouter(wm, signing, auth));
 
   app.listen(PORT, () => {
     console.log(`[context-studio] server listening on http://localhost:${PORT}`);

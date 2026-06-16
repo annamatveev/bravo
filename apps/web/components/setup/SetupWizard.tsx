@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { WorkspaceInfo, WorkspaceSourceType } from "@context-studio/types";
 import { configureWorkspace } from "@/lib/api";
+import { authHeaders } from "@/lib/auth";
 
 export function SetupWizard({ initial }: { initial: WorkspaceInfo }) {
   const router = useRouter();
@@ -23,7 +24,10 @@ export function SetupWizard({ initial }: { initial: WorkspaceInfo }) {
       return;
     }
     setBusy(true);
-    const res = await configureWorkspace({ sourceType, location, identityName, identityEmail });
+    const res = await configureWorkspace(
+      { sourceType, location, identityName, identityEmail },
+      authHeaders(),
+    );
     setBusy(false);
     if (!res.ok) {
       setError(res.error);

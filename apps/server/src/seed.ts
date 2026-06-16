@@ -159,10 +159,22 @@ async function main() {
   const git = new GitService(CONTEXT_REPO_DIR);
   await git.ensureRepo();
 
-  // --- Authors ----------------------------------------------------------
+  // --- Authors (with access roles) -------------------------------------
+  const ACCESS: Record<string, { accessRole: string; email?: string }> = {
+    "user-dana": { accessRole: "owner", email: "dana@context.studio" },
+    "user-amir": { accessRole: "reviewer", email: "amir@context.studio" },
+  };
   for (const a of [OWNER, REVIEWER_2, REFUND_AGENT]) {
+    const extra = ACCESS[a.id] ?? { accessRole: "reviewer" };
     await db.author.create({
-      data: { id: a.id, kind: a.kind, name: a.name, role: a.role ?? null },
+      data: {
+        id: a.id,
+        kind: a.kind,
+        name: a.name,
+        role: a.role ?? null,
+        accessRole: extra.accessRole,
+        email: extra.email ?? null,
+      },
     });
   }
 

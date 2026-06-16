@@ -249,16 +249,47 @@ export interface ReviewTicket {
 // Auth (Module 7 — identity & permissions)
 // ---------------------------------------------------------------------------
 
+/** Permission role assigned to a human (distinct from the display `role` title). */
+export type AccessRole = "owner" | "reviewer" | "viewer";
+
+export type Permission =
+  | "propose"
+  | "approve"
+  | "publish"
+  | "configureWorkspace"
+  | "manageRoles";
+
+const ROLE_PERMISSIONS: Record<AccessRole, Permission[]> = {
+  owner: ["propose", "approve", "publish", "configureWorkspace", "manageRoles"],
+  reviewer: ["propose", "approve"],
+  viewer: [],
+};
+
+/** Single source of truth for who can do what — shared by server + UI. */
+export function can(role: AccessRole | undefined, permission: Permission): boolean {
+  return !!role && ROLE_PERMISSIONS[role].includes(permission);
+}
+
 /** The authenticated human acting in the UI. */
 export interface SessionUser {
   id: string;
   name: string;
+  /** Display title (e.g. "Compliance Officer"). */
   role?: string;
+  /** Permission role. */
+  accessRole: AccessRole;
 }
 
 export interface LoginResponse {
   token: string;
   user: SessionUser;
+}
+
+/** Whether Google SSO is configured on the server (drives the login screen). */
+export interface AuthConfig {
+  googleEnabled: boolean;
+  /** Local pick-user login available (dev / no-SSO fallback). */
+  pickUserEnabled: boolean;
 }
 
 // ---------------------------------------------------------------------------

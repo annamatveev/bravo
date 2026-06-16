@@ -41,3 +41,28 @@ export const SIGNING_DIR = path.resolve(
 
 /** Optional outbound webhook for events. A Slack incoming-webhook URL works. */
 export const WEBHOOK_URL = process.env.CONTEXT_WEBHOOK_URL ?? "";
+
+// --- Auth / SSO / roles (Module 10) --------------------------------------
+
+export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID ?? "";
+export const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET ?? "";
+/** OAuth redirect URI — must match the one registered in Google Cloud. */
+export const GOOGLE_REDIRECT_URI =
+  process.env.GOOGLE_REDIRECT_URI ?? "http://localhost:4000/api/context/auth/google/callback";
+/** Where to send the browser after a successful SSO round-trip. */
+export const WEB_BASE_URL = process.env.WEB_BASE_URL ?? "http://localhost:3000";
+
+/** Emails that are granted the Owner role on sign-in (comma-separated). */
+export const OWNER_EMAILS = (process.env.CONTEXT_OWNER_EMAILS ?? "")
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+/** Role assigned to a signed-in user who is not an owner. */
+export const DEFAULT_ROLE = process.env.CONTEXT_DEFAULT_ROLE ?? "reviewer";
+
+export const GOOGLE_ENABLED = !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET);
+
+/** Allow the local pick-user login (dev fallback). Off in production w/ SSO. */
+export const PICK_USER_LOGIN =
+  (process.env.CONTEXT_PICK_USER_LOGIN ?? (GOOGLE_ENABLED ? "false" : "true")) === "true";

@@ -9,10 +9,13 @@ import { Router } from "express";
 import { DistributionService } from "../services/DistributionService.js";
 import type { SigningService } from "../services/SigningService.js";
 import type { WorkspaceManager } from "../services/WorkspaceManager.js";
+import type { AuthService } from "../services/AuthService.js";
+import { requirePermission } from "./guard.js";
 
 export function createDistributionRouter(
   wm: WorkspaceManager,
   signing: SigningService,
+  auth: AuthService,
 ): Router {
   const router = Router();
 
@@ -30,7 +33,9 @@ export function createDistributionRouter(
     }
   });
 
-  router.post("/publish", async (_req, res) => {
+  router.post("/publish", async (req, res) => {
+    const me = await requirePermission(auth, req, res, "publish");
+    if (!me) return;
     const ctx = wm.current();
     if (!ctx) {
       res.status(409).json({ error: "No workspace configured.", code: "NO_WORKSPACE" });

@@ -42,7 +42,9 @@ model Author {
   id        String   @id
   kind      String // "human" | "agent"
   name      String
-  role      String?
+  role      String? // display title, e.g. "Compliance Officer"
+  email     String?  @unique // for SSO identity matching
+  accessRole String  @default("reviewer") // AccessRole: owner | reviewer | viewer
   prs       Pr[]
   reviews   Reviewer[]
   attributions AttributionEntry[]
