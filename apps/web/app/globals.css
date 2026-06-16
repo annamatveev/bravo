@@ -2,65 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ---- bravo · Brain Vault theme tokens -----------------------------------
-   A livelier palette: a vivid indigo-violet brand, a warm accent, and a set of
-   per-type hues (context / skills / memory / custom) used to colour-code the
-   different kinds of Markdown a workspace holds. Semantic add/remove/modify
-   stay distinct. */
+/* ---- bravo theme tokens — GitHub-style IDE palette (high contrast) -------
+   Light = GitHub Light, dark = GitHub Dark. Brand is blue (clearly distinct
+   from diff-green). Per-type hues use editor-syntax colors. */
 
 :root {
-  --bg: #f7f7fb; /* soft cool paper */
+  --bg: #f6f8fa;
   --surface: #ffffff;
-  --surface-2: #eeeef5;
-  --line: rgba(40, 38, 64, 0.1);
-  --hover: rgba(40, 38, 64, 0.045);
-  --text: #232233;
-  --text-muted: #6b6a80;
+  --surface-2: #eaeef2;
+  --line: #d0d7de;
+  --hover: rgba(31, 35, 40, 0.06);
+  --text: #1f2328;
+  --text-muted: #636c76;
 
-  --brand: #5b54e8; /* vivid indigo-violet */
-  --brand-2: #7c73f5;
-  --brand-soft: rgba(91, 84, 232, 0.1);
-  --brand-ink: #3a31a6;
+  --brand: #0969da; /* GitHub blue */
+  --brand-2: #218bff;
+  --brand-soft: rgba(9, 105, 218, 0.1);
+  --brand-ink: #0a3069;
 
-  --accent: #e8893b; /* warm highlight (decorative only) */
+  --accent: #9a6700; /* attention / yellow-dark */
 
-  /* type hues */
-  --type-context: #4f6bed; /* blue */
-  --type-skills: #9b5cf6; /* violet */
-  --type-memory: #12a8a0; /* teal */
-  --type-default: #7a8a9a; /* slate */
+  --type-context: #0969da; /* blue */
+  --type-skills: #8250df; /* purple */
+  --type-memory: #1b7c83; /* teal */
+  --type-default: #6e7781; /* slate */
 
-  --gutter: rgba(40, 38, 64, 0.32);
-  --added-inline: #c7e7d1;
-  --removed-inline: #f1cfc9;
+  --gutter: rgba(31, 35, 40, 0.38);
+  --added-inline: #aceebb;
+  --removed-inline: #ffcecb;
 
   color-scheme: light;
 }
 
 .dark {
-  --bg: #131218;
-  --surface: #1b1a23;
-  --surface-2: #24222f;
-  --line: rgba(255, 255, 255, 0.09);
-  --hover: rgba(255, 255, 255, 0.05);
-  --text: #e9e8f0;
-  --text-muted: #a0a0b5;
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-2: #21262d;
+  --line: #30363d;
+  --hover: rgba(255, 255, 255, 0.07);
+  --text: #e6edf3;
+  --text-muted: #8b949e;
 
-  --brand: #8e87f5;
-  --brand-2: #a9a3ff;
-  --brand-soft: rgba(142, 135, 245, 0.16);
-  --brand-ink: #cfcbff;
+  --brand: #58a6ff;
+  --brand-2: #79c0ff;
+  --brand-soft: rgba(88, 166, 255, 0.15);
+  --brand-ink: #a5d6ff;
 
-  --accent: #f0a560;
+  --accent: #d29922;
 
-  --type-context: #7e95f5;
-  --type-skills: #b98cff;
-  --type-memory: #45c9c0;
-  --type-default: #9aa7b6;
+  --type-context: #58a6ff;
+  --type-skills: #bc8cff;
+  --type-memory: #56d4bc;
+  --type-default: #8b949e;
 
-  --gutter: rgba(233, 232, 240, 0.28);
-  --added-inline: rgba(31, 138, 91, 0.28);
-  --removed-inline: rgba(210, 72, 59, 0.3);
+  --gutter: rgba(230, 237, 243, 0.32);
+  --added-inline: rgba(46, 160, 67, 0.32);
+  --removed-inline: rgba(248, 81, 73, 0.32);
 
   color-scheme: dark;
 }
@@ -79,10 +76,9 @@
   }
 }
 
-/* Colourful, low-contrast wash behind the app. */
+/* Subtle wash behind the app. */
 .app-bg {
   background-image:
     radial-gradient(55rem 28rem at 108% -8%, var(--brand-soft), transparent 60%),
-    radial-gradient(45rem 24rem at -8% 4%, rgba(18, 168, 160, 0.07), transparent 55%),
-    radial-gradient(40rem 22rem at 60% 120%, rgba(232, 137, 59, 0.06), transparent 60%);
+    radial-gradient(45rem 24rem at -8% 4%, rgba(27, 124, 131, 0.06), transparent 55%);
 }

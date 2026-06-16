@@ -146,6 +146,12 @@ export function Editor({
     window.getSelection()?.removeAllRanges();
   };
 
+  // Ensure a draft exists (annotations alone don't change the text), then propose.
+  async function openPropose() {
+    if (!draftPrId) await save(content);
+    setShowPropose(true);
+  }
+
   function commitComposing() {
     if (!composing || !draftText.trim()) return;
     add(
@@ -212,7 +218,7 @@ export function Editor({
                 </article>
               </div>
               <Legend />
-              <Annotations annos={annos} onRemove={(id) => setAnnos((x) => x.filter((y) => y.id !== id))} />
+              <Annotations annos={annos} onRemove={(id) => setAnnos((x) => x.filter((y) => y.id !== id))} onPropose={openPropose} />
             </>
           )}
         </div>
@@ -268,7 +274,7 @@ export function Editor({
       {showPropose && draftPrId && (
         <ProposeDialog
           draftPrId={draftPrId}
-          annotationCount={annos.length}
+          annos={annos}
           onClose={() => setShowPropose(false)}
           onProposed={(prId) => router.push(`/pr/${prId}`)}
         />
@@ -414,7 +420,7 @@ function annotate(text: string, annos: Anno[]): React.ReactNode {
   return nodes;
 }
 
-function Annotations({ annos, onRemove }: { annos: Anno[]; onRemove: (id: string) => void }) {
+function Annotations({ annos, onRemove, onPropose }: { annos: Anno[]; onRemove: (id: string) => void; onPropose: () => void }) {
   if (annos.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-line p-3 text-xs text-muted">
@@ -424,7 +430,15 @@ function Annotations({ annos, onRemove }: { annos: Anno[]; onRemove: (id: string
   }
   return (
     <div className="space-y-2">
-      <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">Annotations · {annos.length}</div>
+      <div className="flex items-center justify-between">
+        <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">Annotations · {annos.length}</div>
+        <button
+          onClick={onPropose}
+          className="rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90"
+        >
+          Create change request →
+        </button>
+      </div>
       {annos.map((a) => (
         <div key={a.id} className="rounded-xl border border-line bg-surface p-3 shadow-card">
           <div className="flex items-center justify-between">
@@ -455,17 +469,20 @@ function ExportMenu() {
 
 function ProposeDialog({
   draftPrId,
-  annotationCount,
+  annos,
   onClose,
   onProposed,
 }: {
   draftPrId: string;
-  annotationCount: number;
+  annos: Anno[];
   onClose: () => void;
   onProposed: (prId: string) => void;
 }) {
+  const summary = annos
+    .map((a) => `- [${a.label}] “${a.quote}”${a.note ? `: ${a.note}` : ""}${a.replacement ? ` → ${a.replacement}` : ""}`)
+    .join("\n");
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(annos.length ? `Annotations:\n${summary}` : "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -490,7 +507,7 @@ function ProposeDialog({
       <div className="w-full max-w-md space-y-3 rounded-xl bg-surface p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold">Propose change</h2>
         <p className="text-sm text-muted">
-          Opens a Context PR for review{annotationCount ? ` with ${annotationCount} annotation${annotationCount === 1 ? "" : "s"}` : ""}.
+          Opens a Context PR for review{annos.length ? ` with ${annos.length} annotation${annos.length === 1 ? "" : "s"}` : ""}.
         </p>
         <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (e.g. Clarify refund eligibility)" className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm" />
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Why this change?" className="h-24 w-full resize-none rounded-lg border border-line bg-surface px-3 py-2 text-sm" />

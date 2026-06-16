@@ -13,6 +13,7 @@ import { ThemeToggle } from "@/components/brand/ThemeToggle";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { DemoBanner } from "@/components/demo/DemoBanner";
+import { InboxBadge } from "@/components/nav/InboxBadge";
 import { DEMO } from "@/lib/demo";
 
 export const metadata: Metadata = {
@@ -50,7 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   Dashboard
                 </NavLink>
                 <NavLink href="/inbox" hint="Things that need you — change requests, review tickets, gaps, and unread areas, filterable.">
-                  Inbox
+                  <span className="inline-flex items-center">Inbox<InboxBadge /></span>
                 </NavLink>
                 <NavLink href="/edit/policies/refunds.md" hint="Browse and edit the workspace's Markdown. Edits autosave privately until you propose them.">
                   Editor
