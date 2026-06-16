@@ -1,15 +1,20 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getFreshnessOverview, getWorkspace, listContextPrs } from "@/lib/api";
-import { AuthorBadge, SeverityPill, StatusBadge, relativeTime } from "@/components/cpr/ui";
-import { exportUrls } from "@/lib/api";
+import { getFreshnessOverview, getWorkspace, listContextPrs, listTickets } from "@/lib/api";
 import { Hint } from "@/components/ui/Tooltip";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { WelcomeGuide } from "@/components/onboarding/WelcomeGuide";
 
 export const dynamic = process.env.STATIC_EXPORT === "1" ? "force-static" : "force-dynamic";
 
-export default async function Dashboard() {
+const STATE_HINTS: Record<string, string> = {
+  Fresh: "Reviewed recently, within its review window. Trusted.",
+  Stale: "Past its review window — probably fine, but no one has confirmed it lately.",
+  Expired: "Long past its window — shouldn't be trusted until re-confirmed.",
+  Conflicted: "Two or more open change requests edit this same block; needs resolution.",
+};
+
+export default async function Home() {
   // No workspace bound yet → send the user to the setup wizard.
   // (redirect() throws NEXT_REDIRECT, so it must run outside the try/catch.)
   let needsSetup = false;
@@ -20,10 +25,15 @@ export default async function Dashboard() {
   }
   if (needsSetup) redirect("/setup");
 
-  let prs;
   let freshness;
+  let prs;
+  let tickets;
   try {
-    [prs, freshness] = await Promise.all([listContextPrs(), getFreshnessOverview()]);
+    [freshness, prs, tickets] = await Promise.all([
+      getFreshnessOverview(),
+      listContextPrs(),
+      listTickets(),
+    ]);
   } catch {
     return (
       <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6">
@@ -35,42 +45,23 @@ export default async function Dashboard() {
     );
   }
 
-  const open = prs.filter((p) => !["merged", "rejected"].includes(p.status));
-  const closed = prs.filter((p) => ["merged", "rejected"].includes(p.status));
+  const openCount = prs.filter((p) => !["merged", "rejected"].includes(p.status)).length;
+  const agentCount = prs.filter(
+    (p) => p.origin === "agent" && !["merged", "rejected"].includes(p.status),
+  ).length;
 
   return (
     <div className="space-y-8">
-      <WelcomeGuide />
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-2">
-          <SectionLabel n={1}>The Ledger</SectionLabel>
-          <h1 className="flex items-center gap-2 text-3xl font-semibold tracking-tight">
-            Change Requests
-            <Hint>
-              Each row is a proposed change to your context, opened by a person or an agent.
-              Click one to review its diff, impact, and checks, then approve or request changes.
-            </Hint>
-          </h1>
-          <p className="max-w-prose text-sm text-muted">
-            Your agents’ context, on the record. Every change is reviewed, attributed, and signed
-            before it ships — your data, your reviewers.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <a
-            href={exportUrls.ledgerCsv}
-            className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-muted transition hover:bg-hover hover:text-ink"
-          >
-            Export CSV
-          </a>
-          <Link
-            href="/edit/policies/refunds.md"
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-          >
-            + Edit a policy
-          </Link>
-        </div>
+      <div className="space-y-2">
+        <SectionLabel n={1}>Overview</SectionLabel>
+        <h1 className="text-3xl font-semibold tracking-tight">Welcome to meva</h1>
+        <p className="max-w-prose text-sm text-muted">
+          Author and approve the context that feeds your AI agents — full version history
+          underneath, no Git to learn.
+        </p>
       </div>
+
+      <WelcomeGuide />
 
       <section className="space-y-3">
         <SectionLabel n={2}>Context health</SectionLabel>
@@ -82,35 +73,42 @@ export default async function Dashboard() {
         </div>
       </section>
 
-      <Section n={3} title={`Open · ${open.length}`}>
-        {open.length === 0 ? (
-          <Empty>No open change requests.</Empty>
-        ) : (
-          open.map((pr) => <PrRow key={pr.id} pr={pr} />)
-        )}
-      </Section>
-
-      {closed.length > 0 && (
-        <Section n={4} title={`Closed · ${closed.length}`}>
-          {closed.map((pr) => (
-            <PrRow key={pr.id} pr={pr} />
-          ))}
-        </Section>
-      )}
+      <section className="space-y-3">
+        <SectionLabel n={3}>Jump in</SectionLabel>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <QuickLink
+            href="/changes"
+            title="Review change requests"
+            meta={`${openCount} open${agentCount ? ` · ${agentCount} from agents` : ""}`}
+            body="Approve or request changes on proposed context edits."
+          />
+          <QuickLink
+            href="/edit/policies/refunds.md"
+            title="Edit a policy"
+            meta="Draft → propose"
+            body="Open a document; edits autosave privately until you propose them."
+          />
+          <QuickLink
+            href="/governance"
+            title="Governance"
+            meta={`${tickets.length} open ticket${tickets.length === 1 ? "" : "s"}`}
+            body="Freshness lifecycle and auto-opened review tickets."
+          />
+          <QuickLink
+            href="/distribution"
+            title="Distribution"
+            meta="Signed per-agent bundles"
+            body="What's published to your agents, and how they verify it."
+          />
+        </div>
+      </section>
     </div>
   );
 }
 
-const STATE_HINTS: Record<string, string> = {
-  Fresh: "Reviewed recently, within its review window. Trusted.",
-  Stale: "Past its review window — probably fine, but no one has confirmed it lately.",
-  Expired: "Long past its window — shouldn't be trusted until re-confirmed.",
-  Conflicted: "Two or more open change requests edit this same block; needs resolution.",
-};
-
 function Stat({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
-    <div className="rounded-xl border border-line bg-surface p-4 shadow-sm">
+    <div className="rounded-xl border border-line bg-surface p-4 shadow-card">
       <div className={`text-2xl font-semibold ${tone}`}>{value}</div>
       <div className="flex items-center gap-1 text-xs text-muted">
         {label} blocks
@@ -120,66 +118,28 @@ function Stat({ label, value, tone }: { label: string; value: number; tone: stri
   );
 }
 
-function Section({
-  n,
+function QuickLink({
+  href,
   title,
-  children,
+  meta,
+  body,
 }: {
-  n: number;
+  href: string;
   title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-3">
-      <SectionLabel n={n}>{title}</SectionLabel>
-      <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card">
-        {children}
-      </div>
-    </section>
-  );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return <div className="px-5 py-6 text-sm text-muted">{children}</div>;
-}
-
-function PrRow({
-  pr,
-}: {
-  pr: Awaited<ReturnType<typeof listContextPrs>>[number];
+  meta: string;
+  body: string;
 }) {
   return (
     <Link
-      href={`/pr/${pr.id}`}
-      className="flex items-center justify-between gap-4 px-5 py-3 transition hover:bg-hover"
+      href={href}
+      className="group rounded-xl border border-line bg-surface p-4 shadow-card transition hover:border-brand/40 hover:bg-hover"
     >
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="truncate font-medium">{pr.title}</span>
-          {pr.origin === "agent" && (
-            <span className="shrink-0 rounded-full bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 dark:text-indigo-300">
-              agent
-            </span>
-          )}
-        </div>
-        <div className="mt-0.5 flex items-center gap-2 text-xs text-muted">
-          <span className="font-mono">{pr.id}</span>
-          <span aria-hidden>·</span>
-          <span>{pr.documentPath}</span>
-          <span aria-hidden>·</span>
-          <span>updated {relativeTime(pr.updatedAt)}</span>
-        </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-medium">{title}</span>
+        <span className="text-brand transition group-hover:translate-x-0.5">→</span>
       </div>
-      <div className="flex shrink-0 items-center gap-3">
-        {pr.affectedAgents > 0 && (
-          <span className="flex items-center gap-1 text-xs text-muted">
-            <SeverityPill severity={pr.blastMaxSeverity} />
-            {pr.affectedAgents} agent{pr.affectedAgents === 1 ? "" : "s"}
-          </span>
-        )}
-        <AuthorBadge author={pr.author} />
-        <StatusBadge status={pr.status} />
-      </div>
+      <div className="mt-0.5 font-mono text-[11px] uppercase tracking-wide text-muted">{meta}</div>
+      <p className="mt-1.5 text-sm text-muted">{body}</p>
     </Link>
   );
 }
