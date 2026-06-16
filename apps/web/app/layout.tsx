@@ -46,10 +46,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </span>
               </Link>
               <nav className="ml-3 flex items-center gap-0.5 text-sm">
-                <NavLink href="/">Dashboard</NavLink>
                 <NavLink href="/inbox">
                   <span className="inline-flex items-center">Inbox<InboxBadge /></span>
                 </NavLink>
+                <NavLink href="/">Dashboard</NavLink>
                 <NavLink href="/edit/policies/refunds.md">Editor</NavLink>
                 <NavLink href="/distribution">Publish</NavLink>
                 <NavLink href="/setup">Workspace</NavLink>
@@ -62,12 +62,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </header>
           <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
           <footer className="border-t border-line">
-            <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-5 gap-y-2 px-6 py-5 text-xs text-muted">
+            <div className="mx-auto max-w-5xl px-6 py-5 text-xs text-muted">
               <span className="font-mono uppercase tracking-[0.15em]">bravo · Brain Vault</span>
-              <a href="/welcome" className="hover:text-ink">How bravo works</a>
-              <a href="/governance" className="hover:text-ink">Governance</a>
-              <a href="/changes" className="hover:text-ink">Change requests</a>
-              <a href="https://github.com/annamatveev/meva" className="ml-auto hover:text-ink">GitHub</a>
             </div>
           </footer>
         </div>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { FileInsight, FreshnessState, InsightFlag } from "@context-studio/types";
-import { getFreshnessOverview, getHealth, getInsights, getWorkspace, listContextPrs, listTickets } from "@/lib/api";
+import type { FileInsight, InsightFlag } from "@context-studio/types";
+import { getHealth, getInsights, getWorkspace, listContextPrs } from "@/lib/api";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { SourceChip } from "@/components/ui/SourceChip";
 import { FirstRunRedirect } from "@/components/onboarding/FirstRunRedirect";
@@ -10,13 +10,6 @@ export const dynamic = process.env.STATIC_EXPORT === "1" ? "force-static" : "for
 
 const KIND_COLOR = (k: string) =>
   ["context", "skills", "memory"].includes(k) ? `var(--type-${k})` : "var(--type-default)";
-
-const FRESH_COLOR: Record<FreshnessState, string> = {
-  fresh: "#10b981",
-  stale: "#f59e0b",
-  expired: "#f43f5e",
-  conflicted: "#d946ef",
-};
 
 export default async function Dashboard() {
   let needsSetup = false;
@@ -29,16 +22,12 @@ export default async function Dashboard() {
 
   let health;
   let insights;
-  let freshness;
   let prs;
-  let tickets;
   try {
-    [health, insights, freshness, prs, tickets] = await Promise.all([
+    [health, insights, prs] = await Promise.all([
       getHealth(),
       getInsights(),
-      getFreshnessOverview(),
       listContextPrs(),
-      listTickets(),
     ]);
   } catch {
     return (
@@ -51,19 +40,12 @@ export default async function Dashboard() {
 
   const openCRs = prs.filter((p) => !["merged", "rejected"].includes(p.status)).length;
   const neverRead = health.cold.filter((c) => c.reads === 0).length;
-  const queueCount = openCRs + tickets.length + health.missing.length + neverRead;
 
   const byKind = new Map<string, number>();
   for (const f of insights.files) byKind.set(f.kind, (byKind.get(f.kind) ?? 0) + f.reads);
   const kindBars = [...byKind.entries()]
     .sort((a, b) => b[1] - a[1])
     .map(([kind, reads]) => ({ label: kind, value: reads, color: KIND_COLOR(kind) }));
-
-  const freshSegments = (["fresh", "stale", "expired", "conflicted"] as FreshnessState[]).map((s) => ({
-    label: s,
-    value: freshness.counts[s],
-    color: FRESH_COLOR[s],
-  }));
 
   // The "what to act on" prompts — each derived from the file insights.
   const firstUnverified = insights.files.find((f) => f.flags.includes("unverified"))?.path;
@@ -79,18 +61,13 @@ export default async function Dashboard() {
     <div className="space-y-8">
       <FirstRunRedirect />
 
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-2">
-          <SectionLabel n={1}>Dashboard</SectionLabel>
-          <h1 className="text-3xl font-semibold tracking-tight">Agent knowledge health</h1>
-          <p className="max-w-prose text-sm text-muted">
-            A read on what your agents lean on, what they ignore, and what they can’t find.
-            {health.sample && <span className="text-accent"> Sample data — live with the MCP read-proxy.</span>}
-          </p>
-        </div>
-        <Link href="/inbox" className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90">
-          Inbox · {queueCount} →
-        </Link>
+      <div className="space-y-2">
+        <SectionLabel n={1}>Dashboard</SectionLabel>
+        <h1 className="text-3xl font-semibold tracking-tight">Agent knowledge health</h1>
+        <p className="max-w-prose text-sm text-muted">
+          A read on what your agents lean on, what they ignore, and what they can’t find.
+          {health.sample && <span className="text-accent"> Sample data — live with the MCP read-proxy.</span>}
+        </p>
       </div>
 
       {/* drill-in stat tiles */}
@@ -104,24 +81,10 @@ export default async function Dashboard() {
       {/* charts */}
       <section className="space-y-3">
         <SectionLabel n={2}>At a glance</SectionLabel>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <Card title={`Reads · last ${health.trend.length}d`}>
             <Sparkline values={health.trend} />
             <div className="mt-2 text-xs text-muted">{health.totalReads.toLocaleString()} total · trending up</div>
-          </Card>
-          <Card title="Freshness">
-            <div className="flex items-center gap-4">
-              <Donut segments={freshSegments} />
-              <ul className="space-y-1 text-xs">
-                {freshSegments.map((s) => (
-                  <li key={s.label} className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full" style={{ background: s.color }} />
-                    <span className="capitalize text-muted">{s.label}</span>
-                    <span className="font-medium">{s.value}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
           </Card>
           <Card title="Reads by type">
             <Bars items={kindBars} />
@@ -337,27 +300,6 @@ function Sparkline({ values }: { values: number[] }) {
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full" preserveAspectRatio="none" aria-hidden>
       <polyline points={pts} fill="none" stroke="var(--brand)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function Donut({ segments }: { segments: Array<{ value: number; color: string }> }) {
-  const total = segments.reduce((s, x) => s + x.value, 0) || 1;
-  const R = 30;
-  const C = 2 * Math.PI * R;
-  let off = 0;
-  return (
-    <svg viewBox="0 0 80 80" className="h-24 w-24 shrink-0" aria-hidden>
-      <g transform="rotate(-90 40 40)">
-        {segments.map((s, i) => {
-          const len = (s.value / total) * C;
-          const el = (
-            <circle key={i} cx="40" cy="40" r={R} fill="none" stroke={s.color} strokeWidth="12" strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-off} />
-          );
-          off += len;
-          return el;
-        })}
-      </g>
     </svg>
   );
 }
