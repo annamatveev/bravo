@@ -79,6 +79,17 @@ Translates UI verbs into raw Git:
 - First-run setup wizard at `apps/web/app/setup`; all domain routes resolve Git
   per-request from the active workspace and return 409 until one is configured.
 
+### 6. Distribution — `apps/server/src/services/DistributionService.ts`
+- On merge (or on demand) renders a **per-agent slice** (llms.txt + .fcontext)
+  containing only the documents each agent is authorized for (least privilege,
+  from `.contextstudio.yml` `reads`, else keyword-matched).
+- Writes a **content-addressed, ed25519-signed** bundle to a distribution
+  channel, swapped in atomically (`SigningService`, `DIST_DIR`).
+- `clients/agent-sync.mjs` is the consumer: pull → verify signature against a
+  *pinned* public key → verify every file digest → atomic swap. Verification
+  failure leaves the agent's last-good context untouched. (Tamper-tested.)
+- Surfaced at `apps/web/app/distribution`.
+
 ## Tech stack
 
 | Layer    | Choice                                            |

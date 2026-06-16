@@ -29,11 +29,17 @@ export interface FcontextManifest {
 export class ExportService {
   constructor(private readonly git: GitService) {}
 
-  /** Build a single llms.txt from every document on main. */
-  async buildLlmsTxt(): Promise<string> {
-    const docs = (await this.git.listDocuments(MAIN_BRANCH)).filter(
+  /** Documents on main, excluding dotfiles, optionally restricted to a subset. */
+  private async resolveDocs(only?: string[]): Promise<string[]> {
+    const all = (await this.git.listDocuments(MAIN_BRANCH)).filter(
       (p) => !p.split("/").pop()!.startsWith("."),
     );
+    return only ? all.filter((p) => only.includes(p)) : all;
+  }
+
+  /** Build a single llms.txt from main (optionally a subset of documents). */
+  async buildLlmsTxt(only?: string[]): Promise<string> {
+    const docs = await this.resolveDocs(only);
     const stamp = new Date().toISOString();
     const parts: string[] = [
       "# Context Studio export",
@@ -48,10 +54,8 @@ export class ExportService {
   }
 
   /** Build a .fcontext manifest with attribution + freshness per block. */
-  async buildFcontext(): Promise<FcontextManifest> {
-    const docs = (await this.git.listDocuments(MAIN_BRANCH)).filter(
-      (p) => !p.split("/").pop()!.startsWith("."),
-    );
+  async buildFcontext(only?: string[]): Promise<FcontextManifest> {
+    const docs = await this.resolveDocs(only);
     const documents: FcontextManifest["documents"] = [];
 
     for (const path of docs) {

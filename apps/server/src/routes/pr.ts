@@ -21,6 +21,8 @@ import {
   PrService,
 } from "../services/PrService.js";
 import { computeSemanticDiff } from "../services/SemanticDiffService.js";
+import { DistributionService } from "../services/DistributionService.js";
+import type { SigningService } from "../services/SigningService.js";
 import type { WorkspaceManager } from "../services/WorkspaceManager.js";
 
 /** Resolve the active workspace or send 409 — null means "handled, stop". */
@@ -33,7 +35,7 @@ function requireWorkspace(wm: WorkspaceManager, res: Response) {
   return ctx;
 }
 
-export function createPrRouter(wm: WorkspaceManager): Router {
+export function createPrRouter(wm: WorkspaceManager, signing: SigningService): Router {
   const router = Router();
 
   router.get("/", async (_req, res) => {
@@ -85,6 +87,12 @@ export function createPrRouter(wm: WorkspaceManager): Router {
       if (result.merged) {
         await wm.publishCurrent(); // push approved main back to the canonical store
         await wm.refreshDiscovery();
+        // Re-publish signed per-agent slices to the distribution channel.
+        try {
+          await new DistributionService(ctx, signing).publish(new Date().toISOString());
+        } catch (pubErr) {
+          console.error("[distribution] publish after merge failed:", pubErr);
+        }
       }
       res.json(result);
     } catch (err) {

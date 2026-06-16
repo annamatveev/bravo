@@ -259,6 +259,34 @@ export interface RegisteredAgent {
   /** Lowercase keywords; a changed block matching any → this agent is affected. */
   watches: string[];
   baseSeverity: BlastSeverity;
+  /**
+   * Documents this agent is authorized to receive (least privilege). When
+   * omitted, distribution falls back to documents whose content matches the
+   * agent's `watches` keywords.
+   */
+  reads?: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Distribution (Module 6 — publishing signed per-agent slices)
+// ---------------------------------------------------------------------------
+
+export interface DistributionAgentSlice {
+  agentId: string;
+  agentName: string;
+  documents: string[];
+  files: number;
+  bytes: number;
+}
+
+export interface DistributionStatus {
+  published: boolean;
+  /** Content-hash version of the current published bundle. */
+  version?: string;
+  generatedAt?: string;
+  /** ed25519 public key (PEM) agents pin to verify the bundle signature. */
+  publicKeyPem?: string;
+  agents: DistributionAgentSlice[];
 }
 
 /** The active workspace, as surfaced to the UI. */

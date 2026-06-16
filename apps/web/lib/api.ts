@@ -5,6 +5,7 @@ import type {
   ConfigureWorkspaceBody,
   ContextPR,
   ContextPrSummary,
+  DistributionStatus,
   DocumentView,
   FreshnessOverview,
   ReviewTicket,
@@ -115,6 +116,20 @@ export async function proposeChange(body: {
   });
   if (!res.ok) throw new Error(`Propose failed: ${res.status}`);
   return (await res.json()) as { prId: string };
+}
+
+/** Current published distribution bundle status. */
+export async function getDistribution(): Promise<DistributionStatus> {
+  const res = await fetch(`${API_BASE}/api/context/distribution`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to load distribution: ${res.status}`);
+  return (await res.json()) as DistributionStatus;
+}
+
+/** Re-publish signed per-agent slices (client-side). */
+export async function publishDistribution(): Promise<DistributionStatus> {
+  const res = await fetch(`${API_BASE}/api/context/distribution/publish`, { method: "POST" });
+  if (!res.ok) throw new Error(`Publish failed: ${res.status}`);
+  return (await res.json()) as DistributionStatus;
 }
 
 export const exportUrls = {

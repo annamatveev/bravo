@@ -30,6 +30,9 @@ export default function RootLayout({
                 <a href="/governance" className="rounded-md px-2.5 py-1 text-muted hover:bg-black/[0.04] hover:text-ink">
                   Governance
                 </a>
+                <a href="/distribution" className="rounded-md px-2.5 py-1 text-muted hover:bg-black/[0.04] hover:text-ink">
+                  Distribution
+                </a>
                 <a
                   href="/edit/policies/refunds.md"
                   className="rounded-md px-2.5 py-1 text-muted hover:bg-black/[0.04] hover:text-ink"

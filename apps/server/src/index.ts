@@ -6,7 +6,9 @@ import { createGovernanceRouter } from "./routes/governance.js";
 import { createDocRouter } from "./routes/doc.js";
 import { createExportRouter } from "./routes/export.js";
 import { createWorkspaceRouter } from "./routes/workspace.js";
+import { createDistributionRouter } from "./routes/distribution.js";
 import { WorkspaceManager } from "./services/WorkspaceManager.js";
+import { SigningService } from "./services/SigningService.js";
 import { startFreshnessWorker } from "./worker.js";
 
 async function main() {
@@ -14,6 +16,7 @@ async function main() {
   // domain routes return 409 and the UI shows the setup wizard.
   const wm = new WorkspaceManager();
   await wm.init();
+  const signing = new SigningService();
 
   const app = express();
   app.use(cors());
@@ -21,10 +24,11 @@ async function main() {
 
   app.get("/health", (_req, res) => res.json({ ok: true }));
   app.use("/api/context/workspace", createWorkspaceRouter(wm));
-  app.use("/api/context/pr", createPrRouter(wm));
+  app.use("/api/context/pr", createPrRouter(wm, signing));
   app.use("/api/context/governance", createGovernanceRouter(wm));
   app.use("/api/context/doc", createDocRouter(wm));
   app.use("/api/context/export", createExportRouter(wm));
+  app.use("/api/context/distribution", createDistributionRouter(wm, signing));
 
   app.listen(PORT, () => {
     console.log(`[context-studio] server listening on http://localhost:${PORT}`);

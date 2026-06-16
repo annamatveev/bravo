@@ -53,21 +53,25 @@ agents:
     purpose: Decides customer refund eligibility and amounts.
     watches: [refund, return, window, eligibility]
     baseSeverity: high
+    reads: [policies/refunds.md]
   - id: agent-billing
     name: Billing Reconciliation Agent
     purpose: Reconciles invoices and applies credits.
     watches: [billing, invoice, credit, charge, fee]
     baseSeverity: medium
+    reads: [policies/refunds.md]
   - id: agent-support
     name: Tier-1 Support Agent
     purpose: Answers customer questions from policy context.
     watches: [policy, support, contact, hours, escalation]
     baseSeverity: low
+    reads: [policies/refunds.md]
   - id: agent-compliance
     name: Compliance Audit Agent
     purpose: Flags policy text that conflicts with regulation.
     watches: [compliance, regulation, gdpr, retention, consent]
     baseSeverity: high
+    reads: [policies/refunds.md]
 `;
 
 const BASELINE = `# Refund Policy

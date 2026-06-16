@@ -22,3 +22,17 @@ export const EXPIRED_GRACE_DAYS = Number(process.env.CONTEXT_EXPIRED_GRACE_DAYS 
 
 /** How often the TTL worker re-evaluates freshness (ms). */
 export const WORKER_INTERVAL_MS = Number(process.env.CONTEXT_WORKER_INTERVAL_MS ?? 20_000);
+
+// --- Distribution / signing (Module 6) -----------------------------------
+
+/** Where signed per-agent context bundles are published (the channel). */
+export const DIST_DIR = path.resolve(
+  SERVER_ROOT,
+  process.env.CONTEXT_DIST_DIR ?? ".dist",
+);
+
+/** Where the ed25519 signing keypair is stored (private key, gitignored). */
+export const SIGNING_DIR = path.resolve(
+  SERVER_ROOT,
+  process.env.CONTEXT_SIGNING_DIR ?? ".signing",
+);
