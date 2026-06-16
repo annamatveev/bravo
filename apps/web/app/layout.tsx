@@ -40,7 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <Logo size={28} />
                 <span className="flex items-baseline gap-2">
                   <span className="font-mono text-lg font-bold uppercase tracking-tight">meva</span>
-                  <span className="hidden font-mono text-[11px] uppercase tracking-[0.15em] text-muted sm:inline">
+                  <span className="hidden whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.15em] text-muted sm:inline">
                     · Memory Vault
                   </span>
                 </span>
@@ -88,7 +88,7 @@ function NavLink({
     <Tooltip label={hint}>
       <Link
         href={href}
-        className="rounded-md px-2.5 py-1 text-muted transition hover:bg-hover hover:text-ink"
+        className="whitespace-nowrap rounded-md px-2.5 py-1 text-muted transition hover:bg-hover hover:text-ink"
       >
         {children}
       </Link>
