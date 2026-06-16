@@ -87,11 +87,21 @@ export default async function Dashboard() {
   );
 }
 
+const STATE_HINTS: Record<string, string> = {
+  Fresh: "Reviewed recently, within its review window. Trusted.",
+  Stale: "Past its review window — probably fine, but no one has confirmed it lately.",
+  Expired: "Long past its window — shouldn't be trusted until re-confirmed.",
+  Conflicted: "Two or more open change requests edit this same block; needs resolution.",
+};
+
 function Stat({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
     <div className="rounded-xl border border-line bg-surface p-4 shadow-sm">
       <div className={`text-2xl font-semibold ${tone}`}>{value}</div>
-      <div className="text-xs text-muted">{label} blocks</div>
+      <div className="flex items-center gap-1 text-xs text-muted">
+        {label} blocks
+        {STATE_HINTS[label] && <Hint side="top">{STATE_HINTS[label]}</Hint>}
+      </div>
     </div>
   );
 }
