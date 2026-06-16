@@ -16,14 +16,17 @@ export function UserMenu() {
 
   if (!user) {
     return (
-      <Link href="/login" className="rounded-md px-2.5 py-1 text-sm font-medium text-indigo-600 hover:underline">
+      <Link
+        href="/login"
+        className="whitespace-nowrap rounded-md px-2.5 py-1 text-sm font-medium text-brand hover:underline"
+      >
         Sign in
       </Link>
     );
   }
 
   return (
-    <div className="flex items-center gap-2 text-sm">
+    <div className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm">
       <span className="text-muted">{user.name}</span>
       <span className="rounded bg-surface2 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted">
         {user.accessRole}
@@ -34,7 +37,7 @@ export function UserMenu() {
           setUser(null);
           router.refresh();
         }}
-        className="rounded-md px-2 py-1 text-xs text-muted hover:bg-hover hover:text-ink"
+        className="whitespace-nowrap rounded-md px-2 py-1 text-xs text-muted hover:bg-hover hover:text-ink"
       >
         Sign out
       </button>
