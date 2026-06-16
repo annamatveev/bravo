@@ -15,6 +15,7 @@
   --hover: rgba(20, 22, 38, 0.045);
   --text: #1b2030;
   --text-muted: #6b7184;
+  --gutter: rgba(27, 32, 48, 0.34);
 
   --brand: #6c4cf0; /* violet */
   --brand-2: #14b8c4; /* cyan/teal */
@@ -35,6 +36,7 @@
   --hover: rgba(255, 255, 255, 0.06);
   --text: #e7eaf3;
   --text-muted: #9aa3b8;
+  --gutter: rgba(231, 234, 243, 0.28);
 
   --brand: #9b86ff;
   --brand-2: #3ddbe6;

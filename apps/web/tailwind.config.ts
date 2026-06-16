@@ -14,6 +14,7 @@ const config: Config = {
         hover: "var(--hover)",
         ink: "var(--text)",
         muted: "var(--text-muted)",
+        gutter: "var(--gutter)",
         // Brand identity — a violet→cyan signature, distinct from the
         // semantic palette (emerald/amber/rose/indigo) used for status.
         brand: {

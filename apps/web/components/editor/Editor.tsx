@@ -171,15 +171,13 @@ function BlockRow({
 
   return (
     <div
-      className="relative flex items-start gap-2 rounded-md px-3 py-1.5 hover:bg-hover"
+      className="relative flex items-baseline gap-3 rounded-md px-3 py-1.5 hover:bg-hover"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
       <span
-        className={`mt-0.5 w-7 shrink-0 select-none text-right font-mono text-xs tabular-nums ${
-          attribution
-            ? "text-muted/40"
-            : "font-semibold text-emerald-500/80"
+        className={`w-6 shrink-0 select-none text-right font-mono text-xs tabular-nums ${
+          attribution ? "text-gutter" : "font-semibold text-emerald-500/80"
         }`}
         title={attribution ? undefined : "New / edited — unattributed until merged"}
         aria-hidden
