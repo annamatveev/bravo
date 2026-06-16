@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { DocumentView } from "@context-studio/types";
+import type { Attribution, DocumentView } from "@context-studio/types";
 import { autosaveDoc, exportUrls, proposeChange } from "@/lib/api";
 import { authHeaders, getSession } from "@/lib/auth";
-import { parseBlocks } from "@/lib/blocks";
+import { parseBlocks, blockKey } from "@/lib/blocks";
+import { relativeTime } from "@/components/cpr/ui";
+import { SourceChip } from "@/components/ui/SourceChip";
 
 type Mode = "write" | "review";
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -20,6 +23,11 @@ interface Anno {
   replacement?: string;
 }
 
+interface FileEntry {
+  path: string;
+  kind: string;
+}
+
 const TYPE_META: Record<AnnoType, { label: string; dot: string; mark: string }> = {
   comment: { label: "Comment", dot: "var(--type-context)", mark: "bg-indigo-500/15 underline decoration-indigo-500/50 underline-offset-2" },
   replace: { label: "Replace", dot: "var(--accent)", mark: "bg-amber-500/20" },
@@ -29,7 +37,15 @@ const TYPE_META: Record<AnnoType, { label: string; dot: string; mark: string }> 
 let counter = 0;
 const nextId = () => `a${++counter}`;
 
-export function Editor({ doc }: { doc: DocumentView }) {
+export function Editor({
+  doc,
+  files,
+  currentPath,
+}: {
+  doc: DocumentView;
+  files: FileEntry[];
+  currentPath: string;
+}) {
   const router = useRouter();
   const [content, setContent] = useState(doc.content);
   const [mode, setMode] = useState<Mode>("review");
@@ -46,6 +62,11 @@ export function Editor({ doc }: { doc: DocumentView }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = content !== doc.content;
   const blocks = parseBlocks(content);
+
+  const attribByKey = useMemo(
+    () => new Map(doc.attributions.map((a) => [a.blockKey, a.attribution])),
+    [doc.attributions],
+  );
 
   const save = useCallback(
     async (text: string) => {
@@ -73,7 +94,6 @@ export function Editor({ doc }: { doc: DocumentView }) {
     };
   }, [content, doc.content, save]);
 
-  // Select-to-annotate: on mouse-up inside the doc, capture the selection.
   function onMouseUp() {
     const s = window.getSelection();
     const quote = s?.toString().trim() ?? "";
@@ -125,7 +145,7 @@ export function Editor({ doc }: { doc: DocumentView }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">{doc.documentPath}</h1>
+          <h1 className="font-mono text-sm text-muted">{currentPath}</h1>
           <p className="text-xs text-muted">
             Review surface — select any text to comment, replace, or mark for deletion. Edits
             autosave privately until you propose them.
@@ -144,80 +164,46 @@ export function Editor({ doc }: { doc: DocumentView }) {
         </div>
       </div>
 
-      <div className="inline-flex rounded-lg border border-line bg-surface p-0.5 text-sm">
-        {(["review", "write"] as Mode[]).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            className={`rounded-md px-3 py-1 capitalize ${mode === m ? "bg-brand text-white" : "text-muted hover:text-ink"}`}
-          >
-            {m}
-          </button>
-        ))}
-      </div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[13rem_1fr]">
+        {/* File browser */}
+        <FileBrowser files={files} current={currentPath} />
 
-      {mode === "write" ? (
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          spellCheck={false}
-          className="h-[28rem] w-full resize-y rounded-xl border border-line bg-surface p-4 font-mono text-sm leading-relaxed text-ink shadow-card focus:outline-none focus:ring-2 focus:ring-brand/20"
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_18rem]">
-          {/* Document */}
-          <div
-            ref={docRef}
-            onMouseUp={onMouseUp}
-            className="rounded-2xl border border-line bg-surface px-8 py-7 shadow-card"
-          >
-            <article className="mx-auto max-w-[68ch] space-y-3 leading-[1.75] text-[15px]">
-              {blocks.map((b, i) => (
-                <Block key={i} idx={i} block={b} annos={annos.filter((a) => a.blockIdx === i)} />
-              ))}
-            </article>
+        <div className="space-y-3">
+          <div className="inline-flex rounded-lg border border-line bg-surface p-0.5 text-sm">
+            {(["review", "write"] as Mode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`rounded-md px-3 py-1 capitalize ${mode === m ? "bg-brand text-white" : "text-muted hover:text-ink"}`}
+              >
+                {m}
+              </button>
+            ))}
           </div>
 
-          {/* Margin notes */}
-          <aside className="space-y-2 lg:sticky lg:top-6 lg:self-start">
-            <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
-              Annotations · {annos.length}
-            </div>
-            {annos.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-line p-3 text-xs text-muted">
-                Select text in the document to add a comment, a replacement, or a deletion.
-              </p>
-            ) : (
-              annos.map((a) => (
-                <div key={a.id} className="rounded-xl border border-line bg-surface p-3 shadow-card">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted">
-                      <span className="h-2 w-2 rounded-full" style={{ background: TYPE_META[a.type].dot }} />
-                      {TYPE_META[a.type].label}
-                    </span>
-                    <button
-                      onClick={() => setAnnos((x) => x.filter((y) => y.id !== a.id))}
-                      className="text-xs text-muted hover:text-ink"
-                      aria-label="Remove annotation"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <div className="mt-1 truncate text-xs italic text-muted">“{a.quote}”</div>
-                  {a.note && <div className="mt-1 text-sm">{a.note}</div>}
-                  {a.replacement && (
-                    <div className="mt-1 text-sm">
-                      → <span className="rounded bg-amber-500/15 px-1">{a.replacement}</span>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </aside>
+          {mode === "write" ? (
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              spellCheck={false}
+              className="h-[28rem] w-full resize-y rounded-xl border border-line bg-surface p-4 font-mono text-sm leading-relaxed text-ink shadow-card focus:outline-none focus:ring-2 focus:ring-brand/20"
+            />
+          ) : (
+            <>
+              <div ref={docRef} onMouseUp={onMouseUp} className="rounded-2xl border border-line bg-surface px-7 py-6 shadow-card">
+                <article className="max-w-[68ch] space-y-1 leading-[1.75] text-[15px]">
+                  {blocks.map((b, i) => (
+                    <Block key={i} idx={i} block={b} annos={annos.filter((a) => a.blockIdx === i)} attribution={attribByKey.get(blockKey(b.text))} />
+                  ))}
+                </article>
+              </div>
+              <Legend />
+              <Annotations annos={annos} onRemove={(id) => setAnnos((x) => x.filter((y) => y.id !== id))} />
+            </>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* Floating select toolbar */}
       {sel && !composing && (
         <div
           className="fixed z-40 -translate-x-1/2 -translate-y-full rounded-lg border border-line bg-surface p-1 text-sm shadow-lg"
@@ -229,7 +215,6 @@ export function Editor({ doc }: { doc: DocumentView }) {
         </div>
       )}
 
-      {/* Composer for comment / replace */}
       {composing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setComposing(null)}>
           <div className="w-full max-w-md space-y-3 rounded-xl bg-surface p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
@@ -246,12 +231,8 @@ export function Editor({ doc }: { doc: DocumentView }) {
               className="h-24 w-full resize-none rounded-lg border border-line bg-surface px-3 py-2 text-sm"
             />
             <div className="flex justify-end gap-2">
-              <button onClick={() => setComposing(null)} className="rounded-lg border border-line px-3 py-1.5 text-sm">
-                Cancel
-              </button>
-              <button onClick={commitComposing} className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white">
-                Add annotation
-              </button>
+              <button onClick={() => setComposing(null)} className="rounded-lg border border-line px-3 py-1.5 text-sm">Cancel</button>
+              <button onClick={commitComposing} className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white">Add annotation</button>
             </div>
           </div>
         </div>
@@ -265,6 +246,60 @@ export function Editor({ doc }: { doc: DocumentView }) {
           onProposed={(prId) => router.push(`/pr/${prId}`)}
         />
       )}
+    </div>
+  );
+}
+
+function FileBrowser({ files, current }: { files: FileEntry[]; current: string }) {
+  const groups = useMemo(() => {
+    const m = new Map<string, FileEntry[]>();
+    for (const f of files) {
+      const arr = m.get(f.kind) ?? [];
+      arr.push(f);
+      m.set(f.kind, arr);
+    }
+    return [...m.entries()];
+  }, [files]);
+
+  return (
+    <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start">
+      <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">Files</div>
+      {groups.map(([kind, list]) => (
+        <div key={kind} className="space-y-1">
+          <SourceChip kind={kind} />
+          <div className="space-y-0.5">
+            {list.map((f) => {
+              const active = f.path === current;
+              const name = f.path.split("/").slice(1).join("/") || f.path;
+              return (
+                <Link
+                  key={f.path}
+                  href={`/edit/${f.path}`}
+                  className={`block truncate rounded-md px-2 py-1 text-sm transition ${
+                    active ? "bg-brand/10 font-medium text-ink" : "text-muted hover:bg-hover hover:text-ink"
+                  }`}
+                  title={f.path}
+                >
+                  {name}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </aside>
+  );
+}
+
+function Legend() {
+  return (
+    <div className="flex flex-wrap items-center gap-4 px-1 text-xs text-muted">
+      <span className="flex items-center gap-1.5">
+        <span className="h-3 w-1 rounded bg-emerald-500" /> Human-verified — trusted
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="h-3 w-1 rounded bg-amber-500" /> AI-written — review before trusting
+      </span>
     </div>
   );
 }
@@ -289,45 +324,62 @@ function SaveBadge({ state, dirty }: { state: SaveState; dirty: boolean }) {
   return <span className="text-xs text-muted">{dirty ? "Unsaved" : "Up to date"}</span>;
 }
 
-/** Render a block's text with its annotations as inline highlights. */
+/** A block with its inline annotations and an authorship confidence rail. */
 function Block({
   idx,
   block,
   annos,
+  attribution,
 }: {
   idx: number;
   block: ReturnType<typeof parseBlocks>[number];
   annos: Anno[];
+  attribution?: Attribution;
 }) {
+  const [hover, setHover] = useState(false);
+  const kind = attribution?.author.kind;
+  const rail = kind === "human" ? "border-emerald-500" : kind === "agent" ? "border-amber-500" : "border-transparent";
   const inner = annotate(block.text, annos);
-  const common = { "data-bi": idx } as Record<string, unknown>;
-  if (block.blockType === "heading") {
-    const Tag = (block.depth ?? 1) <= 1 ? "h2" : "h3";
-    return (
-      <Tag {...common} className={(block.depth ?? 1) <= 1 ? "pt-2 text-2xl font-semibold" : "pt-1 text-lg font-semibold"}>
-        {inner}
-      </Tag>
-    );
-  }
-  if (block.blockType === "listItem") {
-    return (
-      <div {...common} className="flex gap-2">
+
+  const content =
+    block.blockType === "heading" ? (
+      <span className={(block.depth ?? 1) <= 1 ? "text-2xl font-semibold" : "text-lg font-semibold"}>{inner}</span>
+    ) : block.blockType === "listItem" ? (
+      <span className="flex gap-2">
         <span className="select-none text-muted">•</span>
         <span>{inner}</span>
-      </div>
+      </span>
+    ) : block.blockType === "code" ? (
+      <pre className="overflow-x-auto rounded-lg bg-slate-900/90 p-3 text-sm text-slate-100">{block.text}</pre>
+    ) : (
+      <span className="text-ink/90">{inner}</span>
     );
-  }
-  if (block.blockType === "code") {
-    return (
-      <pre {...common} className="overflow-x-auto rounded-lg bg-slate-900/90 p-3 text-sm text-slate-100">
-        {block.text}
-      </pre>
-    );
-  }
+
   return (
-    <p {...common} className="text-ink/90">
-      {inner}
-    </p>
+    <div
+      data-bi={idx}
+      className={`relative border-l-2 py-1 pl-3 ${rail}`}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
+      {content}
+      {hover && attribution && (
+        <div className="absolute left-3 z-10 mt-1 w-72 rounded-lg border border-line bg-surface p-2.5 text-xs shadow-lg">
+          {kind === "human" ? (
+            <div className="flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
+              ✓ Human-verified
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
+              ⚠ AI-written — review before trusting
+            </div>
+          )}
+          <div className="mt-1 text-muted">
+            {attribution.author.name} · {relativeTime(attribution.mergedAt)}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -341,14 +393,10 @@ function annotate(text: string, annos: Anno[]): React.ReactNode {
   const nodes: React.ReactNode[] = [];
   let cursor = 0;
   for (const { a, start } of ranges) {
-    if (start < cursor) continue; // skip overlaps
+    if (start < cursor) continue;
     if (start > cursor) nodes.push(text.slice(cursor, start));
     nodes.push(
-      <mark
-        key={a.id}
-        title={a.note ?? a.replacement ?? TYPE_META[a.type].label}
-        className={`rounded px-0.5 text-ink ${TYPE_META[a.type].mark}`}
-      >
+      <mark key={a.id} title={a.note ?? a.replacement ?? TYPE_META[a.type].label} className={`rounded px-0.5 text-ink ${TYPE_META[a.type].mark}`}>
         {a.quote}
       </mark>,
     );
@@ -356,6 +404,37 @@ function annotate(text: string, annos: Anno[]): React.ReactNode {
   }
   if (cursor < text.length) nodes.push(text.slice(cursor));
   return nodes;
+}
+
+function Annotations({ annos, onRemove }: { annos: Anno[]; onRemove: (id: string) => void }) {
+  if (annos.length === 0) {
+    return (
+      <p className="rounded-xl border border-dashed border-line p-3 text-xs text-muted">
+        Select text in the document to add a comment, a replacement, or a deletion.
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-2">
+      <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">Annotations · {annos.length}</div>
+      {annos.map((a) => (
+        <div key={a.id} className="rounded-xl border border-line bg-surface p-3 shadow-card">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted">
+              <span className="h-2 w-2 rounded-full" style={{ background: TYPE_META[a.type].dot }} />
+              {TYPE_META[a.type].label}
+            </span>
+            <button onClick={() => onRemove(a.id)} className="text-xs text-muted hover:text-ink" aria-label="Remove annotation">✕</button>
+          </div>
+          <div className="mt-1 truncate text-xs italic text-muted">“{a.quote}”</div>
+          {a.note && <div className="mt-1 text-sm">{a.note}</div>}
+          {a.replacement && (
+            <div className="mt-1 text-sm">→ <span className="rounded bg-amber-500/15 px-1">{a.replacement}</span></div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function ExportMenu() {
@@ -407,19 +486,8 @@ function ProposeDialog({
         <p className="text-sm text-muted">
           Opens a Context PR for review{annotationCount ? ` with ${annotationCount} annotation${annotationCount === 1 ? "" : "s"}` : ""}.
         </p>
-        <input
-          autoFocus
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Title (e.g. Clarify refund eligibility)"
-          className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm"
-        />
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Why this change?"
-          className="h-24 w-full resize-none rounded-lg border border-line bg-surface px-3 py-2 text-sm"
-        />
+        <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (e.g. Clarify refund eligibility)" className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm" />
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Why this change?" className="h-24 w-full resize-none rounded-lg border border-line bg-surface px-3 py-2 text-sm" />
         {error && <p className="text-sm text-rose-600">{error}</p>}
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="rounded-lg border border-line px-3 py-1.5 text-sm">Cancel</button>

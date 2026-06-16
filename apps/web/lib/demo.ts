@@ -19,8 +19,11 @@ import type {
   LoginResponse,
   ReviewTicket,
   SessionUser,
+  SourceKind,
   WorkspaceInfo,
 } from "@context-studio/types";
+
+import { blockKey, parseBlocks } from "./blocks";
 
 export const DEMO = process.env.NEXT_PUBLIC_DEMO === "1";
 
@@ -219,7 +222,20 @@ const WORKSPACE: WorkspaceInfo = {
     { id: "s1", kind: "skills", sourceType: "remote", location: "git@git.acme.internal:agents/support-skills.git" },
     { id: "s2", kind: "memory", sourceType: "local", location: "/srv/agents/support/memory" },
   ],
-  documents: [DOC],
+  documents: [
+    "policies/refunds.md",
+    "policies/shipping.md",
+    "skills/issue-refund.md",
+    "skills/lookup-order.md",
+    "memory/known-edge-cases.md",
+  ],
+  files: [
+    { path: "policies/refunds.md", kind: "context" },
+    { path: "policies/shipping.md", kind: "context" },
+    { path: "skills/issue-refund.md", kind: "skills" },
+    { path: "skills/lookup-order.md", kind: "skills" },
+    { path: "memory/known-edge-cases.md", kind: "memory" },
+  ],
   agents: [
     { id: "agent-refunds", name: "Refund Resolution Agent" },
     { id: "agent-billing", name: "Billing Reconciliation Agent" },
@@ -248,6 +264,64 @@ Refunds are issued to the original payment method within 5 business days.
 
 Disputed refunds are escalated to a human Support lead for review.
 `;
+
+// Files across the typed sources. `agentLines` marks blocks an agent wrote
+// (lower confidence — review me); everything else is human-authored (trusted).
+const DOCS: Record<string, { kind: SourceKind; content: string; agentLines: string[] }> = {
+  "policies/refunds.md": {
+    kind: "context",
+    content: DOC_CONTENT,
+    agentLines: ["Digital goods are refundable within 14 days of purchase."],
+  },
+  "policies/shipping.md": {
+    kind: "context",
+    content: `# Shipping Policy
+
+Orders ship within 2 business days of payment.
+
+Standard delivery takes 3–5 business days.
+
+International orders may take 10–14 business days and can incur customs fees.
+`,
+    agentLines: ["International orders may take 10–14 business days and can incur customs fees."],
+  },
+  "skills/issue-refund.md": {
+    kind: "skills",
+    content: `# Issue a refund
+
+## Steps
+
+Look up the order by customer email or order ID.
+
+Confirm eligibility against the refund policy.
+
+Issue the refund to the original payment method.
+`,
+    agentLines: ["Confirm eligibility against the refund policy."],
+  },
+  "skills/lookup-order.md": {
+    kind: "skills",
+    content: `# Look up an order
+
+## Steps
+
+Search by customer email, then narrow by order ID or date.
+`,
+    agentLines: [],
+  },
+  "memory/known-edge-cases.md": {
+    kind: "memory",
+    content: `# Known edge cases
+
+Gift-card purchases are non-refundable.
+
+Bundled items must be returned together to qualify.
+`,
+    agentLines: ["Bundled items must be returned together to qualify."],
+  },
+};
+
+export const DEMO_DOC_PATHS = Object.keys(DOCS);
 
 const EVALS: EvalReport = {
   passed: true,
@@ -295,12 +369,24 @@ export const demo = {
   publishDistribution: async (): Promise<DistributionStatus> => ({ ...DISTRIBUTION, generatedAt: now }),
   getWorkspace: async (): Promise<WorkspaceInfo> => WORKSPACE,
   configureWorkspace: async () => ({ ok: true as const, data: WORKSPACE }),
-  getDocumentView: async (): Promise<DocumentView> => ({
-    documentPath: DOC,
-    content: DOC_CONTENT,
-    attributions: [],
-    draftPrId: undefined,
-  }),
+  getDocumentView: async (path: string): Promise<DocumentView> => {
+    const entry = DOCS[path] ?? DOCS["policies/refunds.md"]!;
+    const attributions = parseBlocks(entry.content).map((b) => {
+      const isAgent = entry.agentLines.some((l) => l === b.text);
+      return {
+        blockKey: blockKey(b.text),
+        attribution: {
+          author: isAgent
+            ? { id: "agent-refunds", kind: "agent" as const, name: "Refund Resolution Agent" }
+            : { id: OWNER.id, kind: "human" as const, name: OWNER.name },
+          mergedAt: ago(isAgent ? 1 : 25),
+          prId: isAgent ? "pr-agent-x1" : "pr-000",
+          prTitle: isAgent ? "Agent: store-credit fallback" : "Establish policy",
+        },
+      };
+    });
+    return { documentPath: path, content: entry.content, attributions, draftPrId: undefined };
+  },
   autosaveDoc: async () => ({ draftPrId: "pr-demo-draft", savedAt: now }),
   proposeChange: async () => ({ prId: "pr-demo-draft" }),
   getEvals: async (): Promise<EvalReport> => EVALS,

@@ -118,7 +118,7 @@ export async function getDocumentView(
   path: string,
   as: string,
 ): Promise<DocumentView | null> {
-  if (DEMO) return demo.getDocumentView();
+  if (DEMO) return demo.getDocumentView(path);
   const res = await fetch(
     `${apiBase()}/api/context/doc/view?path=${encodeURIComponent(path)}&as=${encodeURIComponent(as)}`,
     { cache: "no-store" },

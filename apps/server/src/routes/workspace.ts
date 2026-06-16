@@ -17,13 +17,16 @@ export function createWorkspaceRouter(wm: WorkspaceManager, auth: AuthService): 
 
   const toInfo = (): WorkspaceInfo => {
     const ctx = wm.current();
-    if (!ctx) return { configured: false, sources: [], documents: [], agents: [] };
+    if (!ctx) return { configured: false, sources: [], documents: [], files: [], agents: [] };
+    const kinds = ctx.sources.map((s) => s.kind);
+    const kindOf = (p: string) => kinds.find((k) => p.startsWith(`${k}/`)) ?? kinds[0] ?? "context";
     return {
       configured: true,
       identityName: ctx.identity.name,
       identityEmail: ctx.identity.email,
       sources: ctx.sources,
       documents: ctx.documents,
+      files: ctx.documents.map((p) => ({ path: p, kind: kindOf(p) })),
       agents: ctx.agents.map((a) => ({ id: a.id, name: a.name })),
     };
   };

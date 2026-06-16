@@ -1,12 +1,15 @@
 import Link from "next/link";
-import { getDocumentView } from "@/lib/api";
+import { getDocumentView, getWorkspace } from "@/lib/api";
 import { Editor } from "@/components/editor/Editor";
+import { DEMO_DOC_PATHS } from "@/lib/demo";
 
 export const dynamic = process.env.STATIC_EXPORT === "1" ? "force-static" : "force-dynamic";
 
-// For the static (GitHub Pages) demo, pre-render the sample document.
+// For the static (GitHub Pages) demo, pre-render every demo document.
 export function generateStaticParams() {
-  return process.env.STATIC_EXPORT === "1" ? [{ path: ["policies", "refunds.md"] }] : [];
+  return process.env.STATIC_EXPORT === "1"
+    ? DEMO_DOC_PATHS.map((p) => ({ path: p.split("/") }))
+    : [];
 }
 
 const ACTING_USER = "user-dana";
@@ -19,12 +22,14 @@ export default async function EditPage({
   const documentPath = params.path.map(decodeURIComponent).join("/");
 
   let doc;
+  let files: Array<{ path: string; kind: string }> = [];
   try {
-    doc = await getDocumentView(documentPath, ACTING_USER);
+    [doc, files] = await Promise.all([
+      getDocumentView(documentPath, ACTING_USER),
+      getWorkspace().then((w) => w.files).catch(() => []),
+    ]);
   } catch {
-    return (
-      <ErrorState title="Couldn’t reach the backend" body="Start the server and reload." />
-    );
+    return <ErrorState title="Couldn’t reach the backend" body="Start the server and reload." />;
   }
 
   if (!doc) {
@@ -39,9 +44,9 @@ export default async function EditPage({
   return (
     <div className="space-y-4">
       <Link href="/" className="text-sm text-muted hover:text-ink">
-        ← All change requests
+        ← Dashboard
       </Link>
-      <Editor doc={doc} />
+      <Editor doc={doc} files={files} currentPath={documentPath} />
     </div>
   );
 }

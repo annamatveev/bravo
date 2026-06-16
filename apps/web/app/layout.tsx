@@ -46,22 +46,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </span>
               </Link>
               <nav className="ml-3 flex items-center gap-0.5 text-sm">
-                <NavLink href="/queue" hint="One triage queue — change requests, review tickets, missing data, and unread areas, with filters.">
+                <NavLink href="/" hint="The agent health dashboard — what your agents read, ignore, and can't find.">
+                  Dashboard
+                </NavLink>
+                <NavLink href="/queue" hint="Things that need you — change requests, review tickets, gaps, and unread areas, filterable.">
                   Queue
                 </NavLink>
-                <NavLink href="/changes" hint="Just the change-request list: proposed edits to approve.">
-                  Change Requests
-                </NavLink>
-                <NavLink href="/governance" hint="Track how fresh each piece of context is. Stale items are auto-flagged for review.">
-                  Governance
-                </NavLink>
-                <NavLink href="/distribution" hint="Publish signed, per-agent context bundles that your agents pull and verify.">
-                  Distribution
-                </NavLink>
-                <NavLink href="/edit/policies/refunds.md" hint="Draft policy changes. Edits autosave privately until you propose them for review.">
+                <NavLink href="/edit/policies/refunds.md" hint="Browse and edit the workspace's Markdown. Edits autosave privately until you propose them.">
                   Editor
                 </NavLink>
-                <NavLink href="/setup" hint="Connect meva to where your context actually lives (a folder or git repo).">
+                <NavLink href="/distribution" hint="Publish signed, per-agent context bundles your agents pull and verify.">
+                  Publish
+                </NavLink>
+                <NavLink href="/setup" hint="Connect bravo to where your sources live (context / skills / memory repos).">
                   Workspace
                 </NavLink>
               </nav>
@@ -72,6 +69,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </header>
           <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
+          <footer className="border-t border-line">
+            <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-5 gap-y-2 px-6 py-5 text-xs text-muted">
+              <span className="font-mono uppercase tracking-[0.15em]">bravo · Brain Vault</span>
+              <a href="/welcome" className="hover:text-ink">How bravo works</a>
+              <a href="/governance" className="hover:text-ink">Governance</a>
+              <a href="/changes" className="hover:text-ink">Change requests</a>
+              <a href="https://github.com/annamatveev/meva" className="ml-auto hover:text-ink">GitHub</a>
+            </div>
+          </footer>
         </div>
       </body>
     </html>

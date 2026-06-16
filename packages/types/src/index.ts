@@ -430,6 +430,8 @@ export interface WorkspaceInfo {
   sources: WorkspaceSource[];
   /** Discovered document paths across the bound stores. */
   documents: string[];
+  /** All managed files, tagged by kind — for the editor's file browser. */
+  files: Array<{ path: string; kind: SourceKind }>;
   /** Discovered agents (from .bravo.yml, else built-in fallback). */
   agents: Array<{ id: string; name: string }>;
 }
