@@ -54,7 +54,21 @@ every autosave into one semantic commit on `main` and deletes the branch.
 **Module 8 — Evals-as-publish-gate** (on the CPR screen):
 - Context-regression evals in `.contextstudio.yml`; failing evals block approval.
 
-## Prerequisites
+## Run with Docker (whole stack)
+
+```bash
+docker compose up --build
+```
+
+- web → http://localhost:3000  ·  API → http://localhost:4000
+- All state (SQLite DB, the on-disk context repo, published bundles, signing
+  keys) persists on the `cs-data` volume; demo data is seeded on first boot
+  (set `SEED=0` in `docker-compose.yml` to skip).
+- The browser reaches the API at `localhost:4000` (`NEXT_PUBLIC_API_BASE`,
+  inlined at build); the web container reaches it over the compose network at
+  `server:4000` (`API_INTERNAL_BASE`) for server-side rendering.
+
+## Prerequisites (local, without Docker)
 
 - Node ≥ 20, `pnpm`, and a `git` binary on PATH (the backend shells out to real Git).
 

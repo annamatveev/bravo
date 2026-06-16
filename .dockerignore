@@ -1,0 +1,20 @@
+# Keep the build context lean and never bake local state into images.
+**/node_modules
+**/.next
+**/dist
+**/*.tsbuildinfo
+.git
+.github
+
+# Local server state (regenerated inside the container's /data volume)
+apps/server/.context-repo
+apps/server/.dist
+apps/server/.signing
+apps/server/.workspaces
+apps/server/prisma/dev.db
+apps/server/prisma/dev.db-journal
+
+# Misc
+**/*.log
+.DS_Store
+.claude
