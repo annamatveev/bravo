@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { SemanticDiffBlock as Block } from "@context-studio/types";
 import { AuthorBadge, relativeTime } from "./ui";
 
@@ -109,12 +110,12 @@ export function SemanticDiffBlock({ block }: { block: Block }) {
             {attribution.prTitle.endsWith("(proposed)") ? "Proposed in this request" : "Merged"} ·{" "}
             {relativeTime(attribution.mergedAt)}
           </div>
-          <a
+          <Link
             href={`/pr/${attribution.prId}`}
-            className="mt-1.5 inline-block font-medium text-indigo-600 hover:underline"
+            className="mt-1.5 inline-block font-medium text-brand hover:underline"
           >
             {attribution.prTitle.replace(" (proposed)", "")} ({attribution.prId}) →
-          </a>
+          </Link>
         </div>
       )}
     </div>

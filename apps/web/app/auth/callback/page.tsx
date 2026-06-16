@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getMe } from "@/lib/api";
 import { setSession } from "@/lib/auth";
@@ -34,9 +35,9 @@ export default function AuthCallback() {
         <>
           <h1 className="text-lg font-semibold text-rose-600">Sign-in failed</h1>
           <p className="mt-1 text-sm text-muted">{error}</p>
-          <a href="/login" className="mt-3 inline-block text-sm font-medium text-brand hover:underline">
+          <Link href="/login" className="mt-3 inline-block text-sm font-medium text-brand hover:underline">
             Back to sign in
-          </a>
+          </Link>
         </>
       ) : (
         <p className="text-sm text-muted">Signing you in…</p>

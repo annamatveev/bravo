@@ -7,7 +7,7 @@ import { Hint } from "@/components/ui/Tooltip";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { WelcomeGuide } from "@/components/onboarding/WelcomeGuide";
 
-export const dynamic = "force-dynamic";
+export const dynamic = process.env.STATIC_EXPORT === "1" ? "force-static" : "force-dynamic";
 
 export default async function Dashboard() {
   // No workspace bound yet → send the user to the setup wizard.

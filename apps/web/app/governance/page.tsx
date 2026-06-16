@@ -10,7 +10,7 @@ const STATE_HINTS: Record<string, string> = {
   Conflicted: "Two or more open change requests edit this same block; needs resolution.",
 };
 
-export const dynamic = "force-dynamic";
+export const dynamic = process.env.STATIC_EXPORT === "1" ? "force-static" : "force-dynamic";
 
 export default async function GovernancePage() {
   let freshness;

@@ -2,7 +2,7 @@ import { getWorkspace } from "@/lib/api";
 import { SetupWizard } from "@/components/setup/SetupWizard";
 import type { WorkspaceInfo } from "@context-studio/types";
 
-export const dynamic = "force-dynamic";
+export const dynamic = process.env.STATIC_EXPORT === "1" ? "force-static" : "force-dynamic";
 
 export default async function SetupPage() {
   let initial: WorkspaceInfo = { configured: false, documents: [], agents: [] };

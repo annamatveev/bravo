@@ -2,7 +2,12 @@ import Link from "next/link";
 import { getDocumentView } from "@/lib/api";
 import { Editor } from "@/components/editor/Editor";
 
-export const dynamic = "force-dynamic";
+export const dynamic = process.env.STATIC_EXPORT === "1" ? "force-static" : "force-dynamic";
+
+// For the static (GitHub Pages) demo, pre-render the sample document.
+export function generateStaticParams() {
+  return process.env.STATIC_EXPORT === "1" ? [{ path: ["policies", "refunds.md"] }] : [];
+}
 
 const ACTING_USER = "user-dana";
 

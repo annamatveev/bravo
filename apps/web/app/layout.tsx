@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Inter, Space_Grotesk, Space_Mono } from "next/font/google";
 import "./globals.css";
 import { Logo } from "@/components/brand/Logo";
@@ -28,14 +29,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <head>
         {/* Apply saved/system theme before paint to avoid a flash. */}
-        <script src="/theme-init.js" />
+        <script src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/theme-init.js`} />
       </head>
       <body>
         <div className="app-bg min-h-screen">
           {DEMO && <DemoBanner />}
           <header className="sticky top-0 z-30 border-b border-line bg-surface/70 backdrop-blur">
             <div className="mx-auto flex max-w-5xl items-center gap-4 px-6 py-3">
-              <a href="/" className="flex items-center gap-2.5">
+              <Link href="/" className="flex items-center gap-2.5">
                 <Logo size={28} />
                 <span className="flex items-baseline gap-2">
                   <span className="font-mono text-lg font-bold uppercase tracking-tight">meva</span>
@@ -43,7 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     · Memory Vault
                   </span>
                 </span>
-              </a>
+              </Link>
               <nav className="ml-3 flex items-center gap-0.5 text-sm">
                 <NavLink href="/" hint="Review and approve proposed changes to your context. The home queue of change requests.">
                   Change Requests
@@ -85,12 +86,12 @@ function NavLink({
 }) {
   return (
     <Tooltip label={hint}>
-      <a
+      <Link
         href={href}
         className="rounded-md px-2.5 py-1 text-muted transition hover:bg-hover hover:text-ink"
       >
         {children}
-      </a>
+      </Link>
     </Tooltip>
   );
 }

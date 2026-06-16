@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Attribution, DocumentView } from "@context-studio/types";
 import { autosaveDoc, exportUrls, proposeChange } from "@/lib/api";
@@ -197,9 +198,9 @@ function BlockRow({
                 <AuthorBadge author={attribution.author} />
               </div>
               <div className="text-muted">Merged {relativeTime(attribution.mergedAt)}</div>
-              <a href={`/pr/${attribution.prId}`} className="mt-1 inline-block font-medium text-indigo-600 hover:underline">
+              <Link href={`/pr/${attribution.prId}`} className="mt-1 inline-block font-medium text-brand hover:underline">
                 {attribution.prTitle} ({attribution.prId}) →
-              </a>
+              </Link>
             </>
           ) : (
             <span className="text-emerald-700 dark:text-emerald-300">New / edited — unattributed until merged.</span>

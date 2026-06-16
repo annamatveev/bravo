@@ -1,0 +1,55 @@
+name: Deploy demo to GitHub Pages
+
+# Builds the static, backend-free demo (NEXT_PUBLIC_DEMO=1) and publishes it to
+# GitHub Pages. Enable once in repo Settings - Pages - Source: "GitHub Actions".
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "packages/types/**"
+      - ".github/workflows/deploy-demo.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deploy; let in-progress runs finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build static demo
+        env:
+          STATIC_EXPORT: "1"
+          NEXT_PUBLIC_DEMO: "1"
+          NEXT_PUBLIC_BASE_PATH: "/meva" # repo name; change for a different repo / custom domain
+        run: pnpm --filter @context-studio/web build
+      - run: touch apps/web/out/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

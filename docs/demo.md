@@ -15,14 +15,35 @@ NEXT_PUBLIC_DEMO=1 pnpm --filter @context-studio/web dev
 # → http://localhost:3000  (no server needed)
 ```
 
-## Deploy (free)
+## Deploy to GitHub Pages (free, automated)
 
-The demo is just the Next.js web app with one env var, so it deploys to any
-Next host — **Vercel** is simplest (the Express backend is NOT deployed):
+A workflow (`.github/workflows/deploy-demo.yml`) builds a **static export** and
+publishes it to Pages on every push to `main`.
 
-1. Import the repo in Vercel; set the project root to `apps/web`.
-2. Add env var **`NEXT_PUBLIC_DEMO=1`**.
-3. Deploy. Share the URL, or `<iframe>` it into the landing's "Live preview".
+One-time setup:
+1. Repo **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+2. Push to `main` (or run the workflow manually from the Actions tab).
+3. The demo goes live at **`https://<owner>.github.io/meva/`**
+   (for this repo: `https://annamatveev.github.io/meva/`).
+
+How it's built: `STATIC_EXPORT=1 NEXT_PUBLIC_DEMO=1 NEXT_PUBLIC_BASE_PATH=/meva
+pnpm --filter @context-studio/web build` → `apps/web/out/`. The `basePath` is
+`/meva` because a project repo is served from a subpath. If you rename the repo
+or use a custom domain, update `NEXT_PUBLIC_BASE_PATH` in the workflow (set it
+to empty for a custom domain / user-root page).
+
+To preview the static export locally:
+
+```bash
+STATIC_EXPORT=1 NEXT_PUBLIC_DEMO=1 NEXT_PUBLIC_BASE_PATH=/meva \
+  pnpm --filter @context-studio/web build
+npx serve apps/web/out   # then open http://localhost:3000/meva/
+```
+
+## Or deploy to Vercel
+
+The demo is also just the Next.js app with `NEXT_PUBLIC_DEMO=1` (no `basePath`
+needed): import the repo, set root to `apps/web`, add that env var, deploy.
 
 (Because demo mode never calls the backend, the usual constraint — the server
 needs git + a disk — doesn't apply here. That's only for the *real* app.)

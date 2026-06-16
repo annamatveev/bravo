@@ -6,7 +6,12 @@ import { BlastRadius } from "@/components/cpr/BlastRadius";
 import { EvalsPanel } from "@/components/cpr/EvalsPanel";
 import { ApprovalPanel } from "@/components/cpr/ApprovalPanel";
 
-export const dynamic = "force-dynamic";
+export const dynamic = process.env.STATIC_EXPORT === "1" ? "force-static" : "force-dynamic";
+
+// For the static (GitHub Pages) demo, pre-render the sample CPR.
+export function generateStaticParams() {
+  return process.env.STATIC_EXPORT === "1" ? [{ id: "pr-001" }] : [];
+}
 
 export default async function ContextPrPage({
   params,
