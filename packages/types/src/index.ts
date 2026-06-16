@@ -1,0 +1,211 @@
+/**
+ * Context Studio — shared domain types.
+ *
+ * This package is the single source of truth for the domain language spoken by
+ * BOTH the UI (apps/web) and the abstracted version-control backend (apps/server).
+ *
+ * Design rule: these types describe the *domain* (Context Owners, Context PRs,
+ * blocks, agents). They deliberately contain NO Git vocabulary — branches,
+ * commits and squash-merges live entirely behind the server's GitService. The
+ * UI must never learn that Git exists.
+ */
+
+// ---------------------------------------------------------------------------
+// Actors
+// ---------------------------------------------------------------------------
+
+/** Who authored a piece of context — a person, or an autonomous AI agent. */
+export type AuthorKind = "human" | "agent";
+
+export interface Author {
+  id: string;
+  kind: AuthorKind;
+  /** Display name, e.g. "Dana Levi" or "Reconciliation Agent v3". */
+  name: string;
+  /** Optional avatar / role hint for the UI. */
+  role?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Freshness & governance state machine (Module 4)
+// ---------------------------------------------------------------------------
+
+/**
+ * Lifecycle state of a single context block.
+ *
+ *  fresh      — within its TTL, trusted.
+ *  stale      — past its TTL; a review ticket has been opened automatically.
+ *  expired    — long past TTL; should not be served to agents until reviewed.
+ *  conflicted — two unmerged CPRs touch the same block, or a merge raced.
+ */
+export type FreshnessState = "fresh" | "stale" | "expired" | "conflicted";
+
+export interface FreshnessInfo {
+  state: FreshnessState;
+  /** ISO timestamp of the last authoritative change to this block. */
+  lastReviewedAt: string;
+  /** Configurable Time-To-Live in days before the block is flagged stale. */
+  ttlDays: number;
+  /** ISO timestamp at which this block tips into `stale`. */
+  staleAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Semantic diff (Module 2 — the CPR review screen)
+// ---------------------------------------------------------------------------
+
+/**
+ * How a logical block changed in a proposed Context PR.
+ * Intentionally NOT line-based — we diff whole logical blocks (paragraphs,
+ * list items, headings) so the UI reads like a collaborative wiki, not `git diff`.
+ */
+export type BlockChangeKind = "added" | "removed" | "modified" | "unchanged";
+
+/** A word-level segment used to render emphasis inside a `modified` block. */
+export interface InlineSegment {
+  text: string;
+  /** "added" / "removed" emphasis within an otherwise-modified block. */
+  emphasis?: "added" | "removed";
+}
+
+export interface SemanticDiffBlock {
+  /** Stable id for the logical block (hash of its anchor heading + ordinal). */
+  id: string;
+  kind: BlockChangeKind;
+  /** Markdown block type, used purely for rendering affordances. */
+  blockType: "heading" | "paragraph" | "listItem" | "code" | "quote";
+  /** Heading depth when blockType === "heading". */
+  depth?: number;
+  /** Previous text (present for "removed" and "modified"). */
+  before?: string;
+  /** New text (present for "added" and "modified"). */
+  after?: string;
+  /** Word-level segmentation of `after`, present only for "modified" blocks. */
+  segments?: InlineSegment[];
+  /** Attribution for the resulting text, surfaced in the Attribution Gutter. */
+  attribution?: Attribution;
+}
+
+export interface SemanticDiff {
+  /** The document this diff applies to (path under the context root). */
+  documentPath: string;
+  blocks: SemanticDiffBlock[];
+  summary: {
+    added: number;
+    removed: number;
+    modified: number;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Attribution gutter (Module 3 — non-technical `git blame`)
+// ---------------------------------------------------------------------------
+
+export interface Attribution {
+  author: Author;
+  /** ISO timestamp the text was merged into the authoritative state. */
+  mergedAt: string;
+  /** The Context PR that introduced this text. */
+  prId: string;
+  prTitle: string;
+}
+
+// ---------------------------------------------------------------------------
+// Blast radius (Module 2 — which agents are affected by a change)
+// ---------------------------------------------------------------------------
+
+export type BlastSeverity = "low" | "medium" | "high";
+
+export interface AffectedAgent {
+  id: string;
+  name: string;
+  /** What the agent does, shown in the warning card. */
+  purpose: string;
+  /** How strongly this change touches the agent's relied-upon context. */
+  severity: BlastSeverity;
+  /** Human-readable reason, e.g. "Reads §Refund Windows which is modified." */
+  reason: string;
+}
+
+export interface BlastRadius {
+  agents: AffectedAgent[];
+  /** Highest severity across all affected agents — drives the merge gate. */
+  maxSeverity: BlastSeverity;
+}
+
+// ---------------------------------------------------------------------------
+// Context Pull Request (Module 2)
+// ---------------------------------------------------------------------------
+
+export type PrStatus =
+  | "draft"
+  | "in_review"
+  | "changes_requested"
+  | "approved"
+  | "merged"
+  | "rejected";
+
+export type ReviewDecision = "pending" | "approved" | "changes_requested";
+
+export interface Reviewer {
+  author: Author;
+  decision: ReviewDecision;
+  /** Whether this reviewer's approval is required to merge. */
+  required: boolean;
+  decidedAt?: string;
+}
+
+/** Origin of the PR — opened by a person in the UI, or by an agent via API. */
+export type PrOrigin = "ui" | "agent";
+
+export interface ContextPR {
+  id: string;
+  title: string;
+  /** Free-text rationale ("why this change"). */
+  description: string;
+  status: PrStatus;
+  origin: PrOrigin;
+  author: Author;
+  documentPath: string;
+  createdAt: string;
+  updatedAt: string;
+  reviewers: Reviewer[];
+  diff: SemanticDiff;
+  blastRadius: BlastRadius;
+}
+
+// ---------------------------------------------------------------------------
+// API request/response contracts
+// ---------------------------------------------------------------------------
+
+/** Body for POST /api/context/pr/agent-submit (Module 2). */
+export interface AgentSubmitRequestBody {
+  agentId: string;
+  agentName: string;
+  documentPath: string;
+  title: string;
+  description: string;
+  /** The full proposed new Markdown content for the document. */
+  proposedContent: string;
+}
+
+export interface AgentSubmitResponse {
+  prId: string;
+  status: PrStatus;
+}
+
+export type ApprovalAction = "approve" | "request_changes" | "reject";
+
+export interface ApprovalRequestBody {
+  reviewerId: string;
+  action: ApprovalAction;
+  comment?: string;
+  /** Reviewer must acknowledge a high-severity blast radius to merge. */
+  blastRadiusAcknowledged?: boolean;
+}
+
+export interface ApprovalResponse {
+  pr: ContextPR;
+  /** Set when the approval triggered a squash-merge. */
+  merged: boolean;
+}

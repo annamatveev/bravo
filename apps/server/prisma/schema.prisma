@@ -1,0 +1,87 @@
+// Context Studio metadata store.
+//
+// Git (.context-repo/) is the source of truth for context *content*.
+// This database holds the metadata Git models poorly: PR lifecycle + routing,
+// the attribution index, the freshness/TTL state machine, and the agent
+// "blast radius" mappings.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Author {
+  id        String   @id
+  kind      String // "human" | "agent"
+  name      String
+  role      String?
+  prs       Pr[]
+  reviews   Reviewer[]
+  attributions AttributionEntry[]
+}
+
+model Pr {
+  id          String   @id
+  title       String
+  description String
+  status      String // PrStatus
+  origin      String // "ui" | "agent"
+  documentPath String
+  // The transparent Git draft branch backing this PR. The UI never sees this.
+  draftBranch String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author   Author @relation(fields: [authorId], references: [id])
+  authorId String
+
+  reviewers   Reviewer[]
+  blastEntries BlastEntry[]
+}
+
+model Reviewer {
+  id        String   @id @default(cuid())
+  decision  String // "pending" | "approved" | "changes_requested"
+  required  Boolean  @default(true)
+  decidedAt DateTime?
+
+  pr       Pr     @relation(fields: [prId], references: [id], onDelete: Cascade)
+  prId     String
+  author   Author @relation(fields: [authorId], references: [id])
+  authorId String
+
+  @@unique([prId, authorId])
+}
+
+model BlastEntry {
+  id        String @id @default(cuid())
+  agentId   String
+  agentName String
+  purpose   String
+  severity  String // "low" | "medium" | "high"
+  reason    String
+
+  pr   Pr     @relation(fields: [prId], references: [id], onDelete: Cascade)
+  prId String
+}
+
+// The attribution index: maps a normalized block of text within a document to
+// the author + PR that merged it. Powers the non-technical "Attribution Gutter".
+model AttributionEntry {
+  id           String   @id @default(cuid())
+  documentPath String
+  // Normalized text key of the logical block (see SemanticDiffService.blockKey).
+  blockKey     String
+  mergedAt     DateTime
+  prId         String
+  prTitle      String
+
+  author   Author @relation(fields: [authorId], references: [id])
+  authorId String
+
+  @@index([documentPath, blockKey])
+}
