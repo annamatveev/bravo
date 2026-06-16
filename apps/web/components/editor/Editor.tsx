@@ -171,7 +171,7 @@ function BlockRow({
 
   return (
     <div
-      className="relative flex items-baseline gap-3 rounded-md px-3 py-1.5 hover:bg-hover"
+      className="relative flex items-center gap-3 rounded-md px-3 py-1.5 hover:bg-hover"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
