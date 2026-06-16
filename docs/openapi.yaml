@@ -278,7 +278,59 @@ components:
         state: { type: string, enum: [open, resolved] }
         createdAt: { type: string, format: date-time }
         assignee: { $ref: '#/components/schemas/Author' }
+        type: { type: string, enum: [freshness, conflict, phrasing, mismatch, redundancy, other] }
+        source: { type: string, enum: [system, agent, human] }
+        relatedPaths: { type: array, items: { type: string } }
+        raisedBy: { type: string }
       required: [id, documentPath, blockKey, blockText, reason, state, createdAt]
+    CreateSuggestionBody:
+      type: object
+      description: Triage-agent feedback — files an improvement request into the human Inbox.
+      properties:
+        type: { type: string, enum: [freshness, conflict, phrasing, mismatch, redundancy, other] }
+        documentPath: { type: string }
+        blockText: { type: string, description: The specific block/line the suggestion is about. }
+        reason: { type: string }
+        relatedPaths: { type: array, items: { type: string }, description: For conflicts/mismatches, the other file(s) involved. }
+        agentId: { type: string }
+        agentName: { type: string }
+      required: [type, documentPath, reason]
+    FileInsight:
+      type: object
+      properties:
+        path: { type: string }
+        kind: { type: string }
+        reads: { type: integer }
+        trend: { type: array, items: { type: integer } }
+        lastReadAt: { type: string, format: date-time }
+        lines:
+          type: object
+          properties:
+            total: { type: integer }
+            human: { type: integer }
+            approved: { type: integer }
+            unverified: { type: integer }
+        openRequests: { type: integer }
+        freshness: { type: string, enum: [fresh, stale, expired, conflicted] }
+        flags:
+          type: array
+          items: { type: string, enum: [hot, rarely_read, never_read, unverified, stale, conflict, open_requests] }
+      required: [path, kind, reads, trend, lines, openRequests, flags]
+    InsightsOverview:
+      type: object
+      properties:
+        periodDays: { type: integer }
+        sample: { type: boolean }
+        files: { type: array, items: { $ref: '#/components/schemas/FileInsight' } }
+        summary:
+          type: object
+          properties:
+            rarelyRead: { type: integer }
+            unverified: { type: integer }
+            stale: { type: integer }
+            conflicts: { type: integer }
+            openRequests: { type: integer }
+      required: [periodDays, sample, files, summary]
     DocumentView:
       type: object
       properties:
@@ -291,6 +343,13 @@ components:
             properties:
               blockKey: { type: string }
               attribution: { $ref: '#/components/schemas/Attribution' }
+              insight:
+                type: object
+                description: Always-on editor layers — agent usage + open requests for this block.
+                properties:
+                  reads: { type: integer }
+                  asksAnswered: { type: integer }
+                  openRequests: { type: integer }
             required: [blockKey]
         draftPrId: { type: string }
       required: [documentPath, content, attributions]
@@ -496,6 +555,29 @@ paths:
       summary: Open review tickets
       responses:
         '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ReviewTicket' } } } } }
+  /api/context/insights:
+    get:
+      tags: [Governance]
+      summary: Per-file insights (reads, trends, provenance mix, flags)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/InsightsOverview' } } } }
+        '409': { description: No workspace configured }
+  /api/context/suggestions:
+    post:
+      tags: [Governance]
+      summary: File a triage-agent improvement suggestion (conflict, phrasing, mismatch, …)
+      description: >
+        The triage-agent feedback API. A quality agent calls this to flag a
+        conflict between files, confusing phrasing, a mismatch, redundant text,
+        etc. It lands in the human Inbox as a review ticket — bravo never
+        auto-edits; a human reviews and decides.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateSuggestionBody' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/ReviewTicket' } } } }
+        '400': { description: Invalid body }
+        '409': { description: No workspace configured }
 
   /api/context/doc/view:
     get:

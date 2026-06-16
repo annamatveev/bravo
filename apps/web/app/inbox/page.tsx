@@ -33,12 +33,17 @@ export default async function QueuePage() {
   }
 
   for (const t of tickets) {
+    const type = t.type ?? "freshness";
+    const kind =
+      type === "conflict" ? "conflict" : type === "freshness" ? "ticket" : "suggestion";
+    const related = t.relatedPaths?.length ? ` · vs ${t.relatedPaths.join(", ")}` : "";
+    const by = t.source === "agent" ? ` · ${t.raisedBy ?? "triage agent"}` : "";
     items.push({
-      kind: "ticket",
+      kind,
       title: t.reason,
-      meta: `${t.documentPath} — “${t.blockText}”`,
-      href: "/governance",
-      action: "Resolve",
+      meta: `${t.documentPath}${related}${by}`,
+      href: kind === "ticket" ? "/governance" : `/edit/${t.documentPath}`,
+      action: kind === "ticket" ? "Resolve" : "Review",
     });
   }
 

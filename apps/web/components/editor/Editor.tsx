@@ -3,16 +3,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { Attribution, Confidence, DocumentView } from "@context-studio/types";
+import type { Attribution, BlockInsight, Confidence, DocumentView } from "@context-studio/types";
 import { autosaveDoc, exportUrls, proposeChange } from "@/lib/api";
 import { authHeaders, getSession } from "@/lib/auth";
-import { parseBlocks, blockKey } from "@/lib/blocks";
+import { parseBlocks, blockKey, type ClientBlock } from "@/lib/blocks";
 import { relativeTime } from "@/components/cpr/ui";
 import { SourceChip } from "@/components/ui/SourceChip";
 
 type Mode = "edit" | "source";
 type SaveState = "idle" | "saving" | "saved" | "error";
 type AnnoStyle = "mark" | "strike" | "replace";
+type ComposeMode = "note" | "edit" | "add";
 
 interface Anno {
   id: string;
@@ -28,11 +29,26 @@ interface Anno {
 
 const C = { indigo: "#0969da", rose: "#cf222e", amber: "#bf8700" };
 
-const CONF: Record<Confidence, { rail: string; label: string; cls: string }> = {
-  human: { rail: "border-emerald-500", label: "Human-written — trusted", cls: "text-emerald-600 dark:text-emerald-400" },
-  agent_approved: { rail: "border-brand", label: "AI-written · human-approved", cls: "text-brand" },
-  agent_unverified: { rail: "border-amber-500", label: "AI-written · unverified", cls: "text-amber-600 dark:text-amber-400" },
+const CONF: Record<Confidence, { rail: string; dot: string; short: string; label: string; cls: string }> = {
+  human: { rail: "border-emerald-500", dot: "#10b981", short: "Human", label: "Human-written — trusted", cls: "text-emerald-600 dark:text-emerald-400" },
+  agent_approved: { rail: "border-brand", dot: "var(--brand)", short: "AI · approved", label: "AI-written · human-approved", cls: "text-brand" },
+  agent_unverified: { rail: "border-amber-500", dot: "#f59e0b", short: "AI · unverified", label: "AI-written · not yet reviewed", cls: "text-amber-600 dark:text-amber-400" },
 };
+
+/** Serialize parsed blocks back to Markdown — used when inserting a new line. */
+function serializeBlocks(blocks: ClientBlock[]): string {
+  return (
+    blocks
+      .map((b) => {
+        if (b.blockType === "heading") return `${"#".repeat(b.depth ?? 1)} ${b.text}`;
+        if (b.blockType === "listItem") return `- ${b.text}`;
+        if (b.blockType === "quote") return `> ${b.text}`;
+        if (b.blockType === "code") return b.text;
+        return b.text;
+      })
+      .join("\n\n") + "\n"
+  );
+}
 
 let counter = 0;
 const nextId = () => `a${++counter}`;
@@ -65,7 +81,7 @@ export function Editor({
 
   const [annos, setAnnos] = useState<Anno[]>([]);
   const [sel, setSel] = useState<{ blockIdx: number; quote: string; x: number; y: number } | null>(null);
-  const [composing, setComposing] = useState<{ blockIdx: number; quote: string; mode: "note" | "edit" } | null>(null);
+  const [composing, setComposing] = useState<{ blockIdx: number; quote: string; mode: ComposeMode } | null>(null);
   const [draftText, setDraftText] = useState("");
 
   const docRef = useRef<HTMLDivElement | null>(null);
@@ -75,6 +91,10 @@ export function Editor({
 
   const attribByKey = useMemo(
     () => new Map(doc.attributions.map((a) => [a.blockKey, a.attribution])),
+    [doc.attributions],
+  );
+  const insightByKey = useMemo(
+    () => new Map(doc.attributions.map((a) => [a.blockKey, a.insight])),
     [doc.attributions],
   );
 
@@ -134,14 +154,27 @@ export function Editor({
 
   function commitComposing() {
     if (!composing || !draftText.trim()) return;
-    add(
-      composing.mode === "note"
-        ? { blockIdx: composing.blockIdx, quote: composing.quote, label: "Note", color: C.indigo, style: "mark", note: draftText.trim() }
-        : { blockIdx: composing.blockIdx, quote: composing.quote, label: "Edit", color: C.amber, style: "replace", replacement: draftText.trim() },
-    );
+    if (composing.mode === "add") {
+      // "Add" is a real content insertion (autosaves), not a staged annotation.
+      const bs = parseBlocks(content);
+      bs.splice(composing.blockIdx + 1, 0, { blockType: "paragraph", text: draftText.trim() });
+      setContent(serializeBlocks(bs));
+    } else {
+      add(
+        composing.mode === "note"
+          ? { blockIdx: composing.blockIdx, quote: composing.quote, label: "Note", color: C.indigo, style: "mark", note: draftText.trim() }
+          : { blockIdx: composing.blockIdx, quote: composing.quote, label: "Edit", color: C.amber, style: "replace", replacement: draftText.trim() },
+      );
+    }
     setComposing(null);
     setDraftText("");
   }
+
+  // Per-block actions (operate on the whole line), mirroring the selection toolbar.
+  const blockEdit = (blockIdx: number, text: string) => { setComposing({ blockIdx, quote: text, mode: "edit" }); setDraftText(text); setSel(null); };
+  const blockNote = (blockIdx: number, text: string) => { setComposing({ blockIdx, quote: text, mode: "note" }); setDraftText(""); setSel(null); };
+  const blockDelete = (blockIdx: number, text: string) => add({ blockIdx, quote: text, label: "Delete", color: C.rose, style: "strike" });
+  const blockAdd = (blockIdx: number) => { setComposing({ blockIdx, quote: "", mode: "add" }); setDraftText(""); setSel(null); };
 
   return (
     <div className="space-y-4">
@@ -149,7 +182,8 @@ export function Editor({
         <div>
           <h1 className="font-mono text-sm text-muted">{currentPath}</h1>
           <p className="text-xs text-muted">
-            Editing surface — select text to edit, delete, or leave a note. Edits autosave privately until you propose them.
+            Each line shows who wrote it, how agents use it, and any open requests. Hover a line to add, edit, note, or
+            delete — or select text for a precise edit. Autosaves privately until you propose.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -166,7 +200,10 @@ export function Editor({
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[13rem_1fr]">
-        <FileBrowser files={files} current={currentPath} />
+        <div className="space-y-5 lg:sticky lg:top-6 lg:self-start">
+          <FileBrowser files={files} current={currentPath} />
+          {mode === "edit" && <Outline blocks={blocks} />}
+        </div>
 
         <div className="space-y-3">
           <div className="inline-flex rounded-lg border border-line bg-surface p-0.5 text-sm">
@@ -190,14 +227,25 @@ export function Editor({
             />
           ) : (
             <>
-              <div ref={docRef} onMouseUp={onMouseUp} className="rounded-2xl border border-line bg-surface px-7 py-6 shadow-card">
-                <article className="max-w-[68ch] space-y-1 leading-[1.75] text-[15px]">
+              <Legend />
+              <div ref={docRef} onMouseUp={onMouseUp} className="overflow-hidden rounded-2xl border border-line bg-surface px-3 py-3 shadow-card sm:px-5">
+                <article className="text-[15px]">
                   {blocks.map((b, i) => (
-                    <Block key={i} idx={i} block={b} annos={annos.filter((a) => a.blockIdx === i)} attribution={attribByKey.get(blockKey(b.text))} />
+                    <Block
+                      key={i}
+                      idx={i}
+                      block={b}
+                      annos={annos.filter((a) => a.blockIdx === i)}
+                      attribution={attribByKey.get(blockKey(b.text))}
+                      insight={insightByKey.get(blockKey(b.text))}
+                      onEdit={blockEdit}
+                      onNote={blockNote}
+                      onDelete={blockDelete}
+                      onAdd={blockAdd}
+                    />
                   ))}
                 </article>
               </div>
-              <Legend />
               <Annotations annos={annos} onRemove={(id) => setAnnos((x) => x.filter((y) => y.id !== id))} onPropose={openPropose} />
             </>
           )}
@@ -218,18 +266,26 @@ export function Editor({
       {composing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setComposing(null)}>
           <div className="w-full max-w-md space-y-3 rounded-xl bg-surface p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="text-sm font-semibold">{composing.mode === "note" ? "Note" : "Edit text"}</div>
-            <div className="rounded-lg bg-surface2 px-3 py-2 text-xs italic text-muted">“{composing.quote}”</div>
+            <div className="text-sm font-semibold">
+              {composing.mode === "note" ? "Note" : composing.mode === "add" ? "Add a line" : "Edit text"}
+            </div>
+            {composing.mode === "add" ? (
+              <div className="rounded-lg bg-surface2 px-3 py-2 text-xs text-muted">Inserts a new line below the selected one.</div>
+            ) : (
+              <div className="rounded-lg bg-surface2 px-3 py-2 text-xs italic text-muted">“{composing.quote}”</div>
+            )}
             <textarea
               autoFocus
               value={draftText}
               onChange={(e) => setDraftText(e.target.value)}
-              placeholder={composing.mode === "note" ? "Add a note…" : "Edit the selected text…"}
+              placeholder={composing.mode === "note" ? "Add a note…" : composing.mode === "add" ? "New line to add…" : "Edit the selected text…"}
               className="h-24 w-full resize-none rounded-lg border border-line bg-surface px-3 py-2 text-sm"
             />
             <div className="flex justify-end gap-2">
               <button onClick={() => setComposing(null)} className="rounded-lg border border-line px-3 py-1.5 text-sm">Cancel</button>
-              <button onClick={commitComposing} className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white">Add annotation</button>
+              <button onClick={commitComposing} className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white">
+                {composing.mode === "add" ? "Add line" : "Add annotation"}
+              </button>
             </div>
           </div>
         </div>
@@ -272,7 +328,7 @@ function FileBrowser({ files, current }: { files: Array<{ path: string; kind: st
   }, [files]);
 
   return (
-    <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start">
+    <aside className="space-y-3">
       <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">Files</div>
       {groups.map(([kind, list]) => (
         <div key={kind} className="space-y-1">
@@ -321,50 +377,120 @@ function Block({
   block,
   annos,
   attribution,
+  insight,
+  onEdit,
+  onNote,
+  onDelete,
+  onAdd,
 }: {
   idx: number;
-  block: ReturnType<typeof parseBlocks>[number];
+  block: ClientBlock;
   annos: Anno[];
   attribution?: Attribution;
+  insight?: BlockInsight;
+  onEdit: (idx: number, text: string) => void;
+  onNote: (idx: number, text: string) => void;
+  onDelete: (idx: number, text: string) => void;
+  onAdd: (idx: number) => void;
 }) {
-  const [hover, setHover] = useState(false);
   const conf = attribution?.confidence;
   const meta = conf ? CONF[conf] : null;
   const inner = annotate(block.text, annos);
+  const isHeading = block.blockType === "heading";
 
-  const content =
-    block.blockType === "heading" ? (
-      <span className={(block.depth ?? 1) <= 1 ? "text-2xl font-semibold" : "text-lg font-semibold"}>{inner}</span>
-    ) : block.blockType === "listItem" ? (
-      <span className="flex gap-2"><span className="select-none text-muted">•</span><span>{inner}</span></span>
-    ) : block.blockType === "code" ? (
-      <pre className="overflow-x-auto rounded-lg bg-slate-900/90 p-3 text-sm text-slate-100">{block.text}</pre>
-    ) : (
-      <span className="text-ink/90">{inner}</span>
-    );
+  const content = isHeading ? (
+    <span className={(block.depth ?? 1) <= 1 ? "text-2xl font-semibold" : "text-lg font-semibold"}>{inner}</span>
+  ) : block.blockType === "listItem" ? (
+    <span className="flex gap-2"><span className="select-none text-muted">•</span><span>{inner}</span></span>
+  ) : block.blockType === "code" ? (
+    <pre className="overflow-x-auto rounded-lg bg-slate-900/90 p-3 text-sm text-slate-100">{block.text}</pre>
+  ) : (
+    <span className="text-ink/90">{inner}</span>
+  );
+
+  const who = meta
+    ? conf === "agent_unverified"
+      ? `Written by ${attribution!.author.name} · not yet reviewed`
+      : `Verified by ${attribution!.verifiedBy ?? (attribution!.author.kind === "human" ? attribution!.author.name : "a reviewer")}${attribution!.author.kind === "agent" ? ` · written by ${attribution!.author.name}` : ""} · ${relativeTime(attribution!.mergedAt)}`
+    : "No attribution yet";
 
   return (
     <div
-      data-bi={idx}
-      className={`relative border-l-2 py-1 pl-3 ${meta?.rail ?? "border-transparent"}`}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      id={`blk-${idx}`}
+      className={`group relative grid grid-cols-1 gap-1 border-l-2 py-2 pl-3 pr-1 leading-[1.7] transition-colors hover:bg-hover/40 md:grid-cols-[1fr_9.5rem] md:gap-4 ${meta?.rail ?? "border-transparent"}`}
     >
-      {content}
-      {hover && attribution && meta && (
-        <div className="absolute left-3 z-10 mt-1 w-72 rounded-lg border border-line bg-surface p-2.5 text-xs shadow-lg">
-          <div className={`font-medium ${meta.cls}`}>{meta.label}</div>
-          {conf === "agent_unverified" ? (
-            <div className="mt-1 text-muted">Written by {attribution.author.name} · not yet reviewed</div>
-          ) : (
-            <div className="mt-1 text-muted">
-              ✓ Verified by {attribution.verifiedBy ?? (attribution.author.kind === "human" ? attribution.author.name : "a reviewer")}
-              {attribution.author.kind === "agent" && <> · written by {attribution.author.name}</>}
-              {" · "}{relativeTime(attribution.mergedAt)}
-            </div>
-          )}
+      {/* The written content — selectable for partial edits. */}
+      <div data-bi={idx} className="min-w-0">{content}</div>
+
+      {/* Always-on layers: who/confidence · usage · open requests. */}
+      <aside className="space-y-1 text-[11px] md:text-right">
+        <div className="flex items-center gap-1.5 md:justify-end" title={who}>
+          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: meta?.dot ?? "var(--type-default)" }} />
+          <span className={`font-medium ${meta?.cls ?? "text-muted"}`}>{meta?.short ?? "Unattributed"}</span>
         </div>
-      )}
+        {!isHeading && (insight?.reads ?? 0) > 0 && (
+          <div className="text-muted" title={`Read ${insight!.reads} times by agents · answered an ask ${insight!.asksAnswered ?? 0} times`}>
+            {insight!.reads!.toLocaleString()} reads · {insight!.asksAnswered ?? 0} answered
+          </div>
+        )}
+        {(insight?.openRequests ?? 0) > 0 && (
+          <div className="md:flex md:justify-end">
+            <Link
+              href="/inbox"
+              className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-medium"
+              style={{ background: "rgba(9,105,218,0.12)", color: "#0969da" }}
+              title="Open change requests / review items touch this line"
+            >
+              ● {insight!.openRequests} open
+            </Link>
+          </div>
+        )}
+      </aside>
+
+      {/* Hover action bar — add / edit / note / delete this line. */}
+      <div className="absolute right-1 top-1 z-10 hidden items-center gap-0.5 rounded-md border border-line bg-surface p-0.5 shadow-sm group-hover:flex">
+        <RowBtn title="Add line below" onClick={() => onAdd(idx)}>＋</RowBtn>
+        {!isHeading && <RowBtn title="Edit this line" onClick={() => onEdit(idx, block.text)}>✎</RowBtn>}
+        {!isHeading && <RowBtn title="Leave a note" onClick={() => onNote(idx, block.text)}>💬</RowBtn>}
+        {!isHeading && <RowBtn title="Delete this line" onClick={() => onDelete(idx, block.text)}>🗑️</RowBtn>}
+      </div>
+    </div>
+  );
+}
+
+function RowBtn({ title, onClick, children }: { title: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      title={title}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      className="rounded px-1.5 py-0.5 text-xs leading-none hover:bg-hover"
+    >
+      {children}
+    </button>
+  );
+}
+
+function Outline({ blocks }: { blocks: ClientBlock[] }) {
+  const headings = blocks
+    .map((b, i) => ({ b, i }))
+    .filter(({ b }) => b.blockType === "heading");
+  if (headings.length < 2) return null;
+  return (
+    <div className="space-y-1.5">
+      <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">On this page</div>
+      <nav className="space-y-0.5 border-l border-line">
+        {headings.map(({ b, i }) => (
+          <button
+            key={i}
+            onClick={() => document.getElementById(`blk-${i}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}
+            className={`-ml-px block w-full truncate border-l-2 border-transparent py-0.5 text-left text-xs text-muted transition hover:border-brand hover:text-ink ${(b.depth ?? 1) >= 2 ? "pl-4" : "pl-2 font-medium"}`}
+            title={b.text}
+          >
+            {b.text}
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

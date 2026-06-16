@@ -8,11 +8,13 @@ import type {
   ConfigureWorkspaceBody,
   ContextPR,
   ContextPrSummary,
+  CreateSuggestionBody,
   DistributionStatus,
   DocumentView,
   EvalReport,
   FreshnessOverview,
   HealthOverview,
+  InsightsOverview,
   ReviewTicket,
   WorkspaceInfo,
 } from "@context-studio/types";
@@ -57,6 +59,34 @@ export async function getHealth(): Promise<HealthOverview> {
   const res = await fetch(`${apiBase()}/api/context/health`, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to load health: ${res.status}`);
   return (await res.json()) as HealthOverview;
+}
+
+/** Per-file insights (reads, trends, provenance mix, flags) for the dashboard. */
+export async function getInsights(): Promise<InsightsOverview> {
+  if (DEMO) return demo.getInsights();
+  const res = await fetch(`${apiBase()}/api/context/insights`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to load insights: ${res.status}`);
+  return (await res.json()) as InsightsOverview;
+}
+
+/**
+ * File an improvement suggestion (the triage-agent feedback API). A future
+ * quality agent calls this to flag conflicts, confusing phrasing, mismatches,
+ * etc. It lands in the human Inbox — bravo never auto-edits.
+ */
+export async function createSuggestion(
+  body: CreateSuggestionBody,
+  authHeader: Record<string, string> = {},
+): Promise<{ ok: true; ticket: ReviewTicket } | { ok: false; error: string }> {
+  if (DEMO) return demo.createSuggestion(body);
+  const res = await fetch(`${apiBase()}/api/context/suggestions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeader },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: typeof json.error === "string" ? json.error : "Failed." };
+  return { ok: true, ticket: json as ReviewTicket };
 }
 
 /** Current workspace binding (server-side, uncached). */

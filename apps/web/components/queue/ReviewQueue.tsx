@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 
-export type QueueKind = "change_request" | "ticket" | "missing" | "unread";
+export type QueueKind = "change_request" | "conflict" | "suggestion" | "ticket" | "missing" | "unread";
 
 export interface QueueItem {
   kind: QueueKind;
@@ -17,6 +17,8 @@ export interface QueueItem {
 
 const KIND: Record<QueueKind, { label: string; dot: string }> = {
   change_request: { label: "Change request", dot: "var(--brand)" },
+  conflict: { label: "Conflict", dot: "#d946ef" },
+  suggestion: { label: "Suggestion", dot: "#0a7ea4" },
   ticket: { label: "Review ticket", dot: "#d9a441" },
   missing: { label: "Missing data", dot: "#d2483b" },
   unread: { label: "Unread", dot: "var(--type-default)" },
@@ -25,10 +27,14 @@ const KIND: Record<QueueKind, { label: string; dot: string }> = {
 const FILTERS: Array<{ key: QueueKind | "all"; label: string }> = [
   { key: "all", label: "All" },
   { key: "change_request", label: "Change requests" },
+  { key: "conflict", label: "Conflicts" },
+  { key: "suggestion", label: "Suggestions" },
   { key: "ticket", label: "Review tickets" },
   { key: "missing", label: "Missing data" },
   { key: "unread", label: "Unread" },
 ];
+
+const FILTER_KEYS = ["change_request", "conflict", "suggestion", "ticket", "missing", "unread"];
 
 export function ReviewQueue({ items }: { items: QueueItem[] }) {
   const [filter, setFilter] = useState<QueueKind | "all">("all");
@@ -38,7 +44,7 @@ export function ReviewQueue({ items }: { items: QueueItem[] }) {
   // Honor a ?filter=… deep-link from the dashboard (works in static export).
   useEffect(() => {
     const f = new URLSearchParams(window.location.search).get("filter");
-    if (f && ["change_request", "ticket", "missing", "unread"].includes(f)) {
+    if (f && FILTER_KEYS.includes(f)) {
       setFilter(f as QueueKind);
     }
   }, []);

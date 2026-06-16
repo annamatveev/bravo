@@ -10,6 +10,7 @@
 import type {
   Attribution,
   AutosaveResponse,
+  BlockInsight,
   DocumentView,
   RegisteredAgent,
 } from "@context-studio/types";
@@ -21,6 +22,14 @@ import { blockKey, computeSemanticDiff } from "./SemanticDiffService.js";
 
 export class DocNotFoundError extends Error {}
 export class DraftNotFoundError extends Error {}
+
+/** Stable per-block sample usage until the MCP read-proxy records live traffic. */
+function pseudoReads(key: string): number {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  const v = h % 100;
+  return v < 25 ? 0 : v;
+}
 
 export class DocService {
   constructor(
@@ -39,6 +48,11 @@ export class DocService {
       include: { author: true },
     });
     const byKey = new Map(index.map((e) => [e.blockKey, e]));
+
+    // Open review items per block → the editor's "open requests" layer.
+    const openTickets = await db.reviewTicket.findMany({ where: { documentPath, state: "open" } });
+    const openByKey = new Map<string, number>();
+    for (const t of openTickets) openByKey.set(t.blockKey, (openByKey.get(t.blockKey) ?? 0) + 1);
 
     const attributions = blocks.map((b) => {
       const key = blockKey(b.after ?? "");
@@ -59,7 +73,15 @@ export class DocService {
             verifiedBy: hit.author.kind === "human" ? hit.author.name : undefined,
           }
         : undefined;
-      return { blockKey: key, attribution };
+      // Usage is sample until the MCP read-proxy is live (stable per block text).
+      const isHeading = b.blockType === "heading";
+      const reads = isHeading ? 0 : pseudoReads(`${documentPath}#${key}`);
+      const insight: BlockInsight = {
+        reads,
+        asksAnswered: Math.round(reads * 0.3),
+        openRequests: openByKey.get(key) ?? 0,
+      };
+      return { blockKey: key, attribution, insight };
     });
 
     const draft = await db.pr.findFirst({

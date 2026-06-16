@@ -13,9 +13,12 @@
 
 import type {
   BlockFreshness as DomainFreshness,
+  CreateSuggestionBody,
   FreshnessOverview,
   FreshnessState,
   ReviewTicket,
+  SuggestionSource,
+  TicketType,
 } from "@context-studio/types";
 import { db } from "../lib/db.js";
 import { EXPIRED_GRACE_DAYS } from "../lib/config.js";
@@ -33,6 +36,17 @@ const ATTENTION_RANK: Record<FreshnessState, number> = {
   stale: 2,
   fresh: 3,
 };
+
+/** Parse the stored JSON `relatedPaths` column back into an array. */
+function parseRelated(raw: string | null | undefined): string[] | undefined {
+  if (!raw) return undefined;
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? v : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export class FreshnessService {
   constructor(private readonly git: GitService) {}
@@ -81,6 +95,8 @@ export class FreshnessService {
               blockKey: b.blockKey,
               blockText: b.text,
               reason,
+              type: state === "conflicted" ? "conflict" : "freshness",
+              source: "system",
               assigneeId: owner?.id ?? null,
             },
           });
@@ -161,8 +177,58 @@ export class FreshnessService {
         assignee: a
           ? { id: a.id, kind: a.kind as "human" | "agent", name: a.name, role: a.role ?? undefined }
           : undefined,
+        type: (t.type as TicketType) ?? "freshness",
+        source: (t.source as SuggestionSource) ?? "system",
+        relatedPaths: parseRelated(t.relatedPaths),
+        raisedBy: t.raisedBy ?? undefined,
       };
     });
+  }
+
+  /**
+   * Raise an improvement suggestion (the triage-agent feedback API). Lands in
+   * the human Inbox as a ticket — bravo never auto-edits.
+   */
+  async createSuggestion(body: CreateSuggestionBody): Promise<ReviewTicket> {
+    const owner = await db.author.findFirst({ where: { kind: "human" } });
+    const blockText = body.blockText ?? "";
+    const key = blockText ? blockKey(blockText) : `suggestion:${body.type}`;
+    const created = await db.reviewTicket.upsert({
+      where: {
+        documentPath_blockKey_reason: {
+          documentPath: body.documentPath,
+          blockKey: key,
+          reason: body.reason,
+        },
+      },
+      update: {},
+      create: {
+        documentPath: body.documentPath,
+        blockKey: key,
+        blockText,
+        reason: body.reason,
+        type: body.type,
+        source: "agent",
+        relatedPaths: body.relatedPaths?.length ? JSON.stringify(body.relatedPaths) : null,
+        raisedBy: body.agentName ?? body.agentId ?? "Triage Agent",
+        assigneeId: owner?.id ?? null,
+      },
+    });
+    void notify({ kind: "ticket_opened", documentPath: body.documentPath, reason: body.reason });
+    return {
+      id: created.id,
+      documentPath: created.documentPath,
+      blockKey: created.blockKey,
+      blockText: created.blockText,
+      reason: created.reason,
+      state: created.state as ReviewTicket["state"],
+      createdAt: created.createdAt.toISOString(),
+      assignee: owner ? { id: owner.id, kind: "human", name: owner.name, role: owner.role ?? undefined } : undefined,
+      type: created.type as TicketType,
+      source: created.source as SuggestionSource,
+      relatedPaths: parseRelated(created.relatedPaths),
+      raisedBy: created.raisedBy ?? undefined,
+    };
   }
 
   private toDomain(b: {

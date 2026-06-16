@@ -11,7 +11,6 @@ const body = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const mono = Space_Mono({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-mono" });
 import { ThemeToggle } from "@/components/brand/ThemeToggle";
 import { UserMenu } from "@/components/auth/UserMenu";
-import { Tooltip } from "@/components/ui/Tooltip";
 import { DemoBanner } from "@/components/demo/DemoBanner";
 import { InboxBadge } from "@/components/nav/InboxBadge";
 import { DEMO } from "@/lib/demo";
@@ -47,21 +46,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </span>
               </Link>
               <nav className="ml-3 flex items-center gap-0.5 text-sm">
-                <NavLink href="/" hint="The agent health dashboard — what your agents read, ignore, and can't find.">
-                  Dashboard
-                </NavLink>
-                <NavLink href="/inbox" hint="Things that need you — change requests, review tickets, gaps, and unread areas, filterable.">
+                <NavLink href="/">Dashboard</NavLink>
+                <NavLink href="/inbox">
                   <span className="inline-flex items-center">Inbox<InboxBadge /></span>
                 </NavLink>
-                <NavLink href="/edit/policies/refunds.md" hint="Browse and edit the workspace's Markdown. Edits autosave privately until you propose them.">
-                  Editor
-                </NavLink>
-                <NavLink href="/distribution" hint="Publish signed, per-agent context bundles your agents pull and verify.">
-                  Publish
-                </NavLink>
-                <NavLink href="/setup" hint="Connect bravo to where your sources live (context / skills / memory repos).">
-                  Workspace
-                </NavLink>
+                <NavLink href="/edit/policies/refunds.md">Editor</NavLink>
+                <NavLink href="/distribution">Publish</NavLink>
+                <NavLink href="/setup">Workspace</NavLink>
               </nav>
               <div className="ml-auto flex shrink-0 items-center gap-2">
                 <ThemeToggle />
@@ -85,23 +76,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   );
 }
 
-function NavLink({
-  href,
-  hint,
-  children,
-}: {
-  href: string;
-  hint: string;
-  children: React.ReactNode;
-}) {
+function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Tooltip label={hint}>
-      <Link
-        href={href}
-        className="whitespace-nowrap rounded-md px-2.5 py-1 text-muted transition hover:bg-hover hover:text-ink"
-      >
-        {children}
-      </Link>
-    </Tooltip>
+    <Link
+      href={href}
+      className="whitespace-nowrap rounded-md px-2.5 py-1 text-muted transition hover:bg-hover hover:text-ink"
+    >
+      {children}
+    </Link>
   );
 }

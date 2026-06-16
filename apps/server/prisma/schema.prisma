@@ -121,8 +121,9 @@ model BlockFreshness {
   @@unique([documentPath, blockKey])
 }
 
-// A review ticket auto-opened by the TTL worker when a block goes stale, or by
-// the conflict detector when two open PRs touch the same block.
+// A review ticket auto-opened by the TTL worker when a block goes stale, by the
+// conflict detector when two open PRs touch the same block, or raised by a
+// triage agent via POST /api/context/suggestions (conflict, phrasing, etc.).
 model ReviewTicket {
   id           String   @id @default(cuid())
   documentPath String
@@ -132,6 +133,14 @@ model ReviewTicket {
   state        String   @default("open") // open | resolved
   createdAt    DateTime @default(now())
   assigneeId   String?
+  // TicketType: freshness | conflict | phrasing | mismatch | redundancy | other
+  type         String   @default("freshness")
+  // SuggestionSource: system | agent | human
+  source       String   @default("system")
+  // JSON array of related document paths (conflicts / mismatches).
+  relatedPaths String?
+  // Display name of the triage agent, when source = "agent".
+  raisedBy     String?
 
   @@unique([documentPath, blockKey, reason])
 }

@@ -12,11 +12,16 @@ import type {
   Confidence,
   ContextPR,
   ContextPrSummary,
+  CreateSuggestionBody,
   DistributionStatus,
   DocumentView,
   EvalReport,
+  FileInsight,
+  FreshnessState,
   HealthOverview,
   FreshnessOverview,
+  InsightFlag,
+  InsightsOverview,
   LoginResponse,
   ReviewTicket,
   SessionUser,
@@ -196,9 +201,41 @@ const FRESHNESS: FreshnessOverview = {
   ],
 };
 
+const TRIAGE = "Context Triage Agent";
+
 const TICKETS: ReviewTicket[] = [
-  { id: "t1", documentPath: DOC, blockKey: "refunds are issued…", blockText: "Refunds are issued to the original payment method within 5 business days.", reason: "Block is past its 90-day review window.", state: "open", createdAt: ago(3), assignee: OWNER_AUTHOR },
-  { id: "t2", documentPath: DOC, blockKey: "digital goods…", blockText: "Digital goods are refundable within 14 days of purchase.", reason: "Block is past its 90-day review window.", state: "open", createdAt: ago(1), assignee: OWNER_AUTHOR },
+  // System (TTL) tickets.
+  { id: "t1", type: "freshness", source: "system", documentPath: DOC, blockKey: "refunds are issued…", blockText: "Refunds are issued to the original payment method within 5 business days.", reason: "Block is past its 90-day review window.", state: "open", createdAt: ago(3), assignee: OWNER_AUTHOR },
+  { id: "t2", type: "freshness", source: "system", documentPath: DOC, blockKey: "digital goods…", blockText: "Digital goods are refundable within 14 days of purchase.", reason: "Block is past its 90-day review window.", state: "open", createdAt: ago(1), assignee: OWNER_AUTHOR },
+  // Triage-agent suggestions — the kind a future quality agent would file.
+  {
+    id: "s1", type: "conflict", source: "agent", raisedBy: TRIAGE,
+    documentPath: "policies/shipping.md", blockKey: "international orders…",
+    blockText: "International orders may take 10–14 business days and can incur customs fees.",
+    reason: "Conflicts with memory/customer-faqs.md — it tells customers customs fees are paid by them, but doesn't mention the 10–14 day window. The two answers disagree.",
+    relatedPaths: ["memory/customer-faqs.md"], state: "open", createdAt: ago(0.5), assignee: OWNER_AUTHOR,
+  },
+  {
+    id: "s2", type: "conflict", source: "agent", raisedBy: TRIAGE,
+    documentPath: "memory/known-edge-cases.md", blockKey: "store-credit refunds…",
+    blockText: "Store-credit refunds appear instantly; card refunds take 5 business days.",
+    reason: "Conflicts with policies/refunds.md, which states refunds are issued to the original payment method within 5 business days — the store-credit-is-instant claim isn't in the policy.",
+    relatedPaths: ["policies/refunds.md"], state: "open", createdAt: ago(1.5), assignee: OWNER_AUTHOR,
+  },
+  {
+    id: "s3", type: "phrasing", source: "agent", raisedBy: TRIAGE,
+    documentPath: "skills/lookup-order.md", blockKey: "if the email isn't found…",
+    blockText: "If the email isn't found, try the billing name plus the last four card digits.",
+    reason: "Ambiguous and risky: doesn't say where to read the last four digits from, and could be read as authorizing access to card data. Clarify the safe source.",
+    state: "open", createdAt: ago(2), assignee: OWNER_AUTHOR,
+  },
+  {
+    id: "s4", type: "redundancy", source: "agent", raisedBy: TRIAGE,
+    documentPath: "policies/refunds.md", blockKey: "subscriptions…",
+    blockText: "Subscriptions can be cancelled at any time; the current billing period is not prorated.",
+    reason: "Likely belongs in a dedicated subscriptions policy — it's the only subscription rule in the refund file and agents miss it (see the unanswered 'subscription cancellation' asks).",
+    state: "open", createdAt: ago(2.5), assignee: OWNER_AUTHOR,
+  },
 ];
 
 const DISTRIBUTION: DistributionStatus = {
@@ -255,11 +292,15 @@ const DOC_CONTENT = `# Refund Policy
 
 Customers may request a refund through the support portal or by email.
 
+This policy applies to all consumer purchases. Business and wholesale orders follow the terms in the signed contract.
+
 ## Refund Windows
 
 Standard purchases are refundable within 30 days of delivery.
 
 Digital goods are refundable within 14 days of purchase.
+
+Subscriptions can be cancelled at any time; the current billing period is not prorated.
 
 ## Eligibility
 
@@ -267,9 +308,23 @@ Items must be unused and in original packaging to qualify for a refund.
 
 Refunds are issued to the original payment method within 5 business days.
 
+Gift purchases are refunded as store credit to the recipient.
+
+## Non-refundable items
+
+Gift cards, downloadable license keys once activated, and final-sale items are non-refundable.
+
+Shipping fees are non-refundable unless the return is due to our error.
+
+## High-value approvals
+
+Refunds above $500 require a second approver before they are issued.
+
 ## Escalation
 
 Disputed refunds are escalated to a human Support lead for review.
+
+If the customer threatens a chargeback, escalate immediately and pause further replies.
 `;
 
 // Files across the typed sources. `marks` records agent-authored blocks and
@@ -419,14 +474,124 @@ const HEALTH: HealthOverview = {
   ],
 };
 
+// Per-file usage over the window. Open requests, conflicts and provenance are
+// derived from the tickets / PRs / DOCS above so the numbers stay consistent.
+const FILE_META: Record<string, { reads: number; trend: number[]; lastReadAt?: string; freshness: FreshnessState }> = {
+  "policies/refunds.md": { reads: 762, trend: [40, 44, 48, 52, 61, 70, 80, 88], lastReadAt: ago(0.2), freshness: "stale" },
+  "skills/issue-refund.md": { reads: 197, trend: [18, 20, 22, 24, 26, 28, 30, 29], lastReadAt: ago(0.3), freshness: "fresh" },
+  "skills/lookup-order.md": { reads: 96, trend: [10, 11, 12, 12, 13, 12, 13, 13], lastReadAt: ago(1), freshness: "fresh" },
+  "policies/shipping.md": { reads: 60, trend: [13, 11, 10, 9, 8, 7, 6, 5], lastReadAt: ago(2), freshness: "fresh" },
+  "memory/customer-faqs.md": { reads: 33, trend: [5, 4, 5, 4, 4, 4, 3, 4], lastReadAt: ago(3), freshness: "fresh" },
+  "memory/known-edge-cases.md": { reads: 14, trend: [3, 2, 2, 1, 2, 2, 1, 1], lastReadAt: ago(6), freshness: "fresh" },
+  "policies/privacy.md": { reads: 8, trend: [2, 1, 2, 0, 1, 1, 0, 1], lastReadAt: ago(9), freshness: "fresh" },
+  "skills/escalate-to-human.md": { reads: 0, trend: [0, 0, 0, 0, 0, 0, 0, 0], freshness: "expired" },
+};
+
+const RARE_THRESHOLD = 25;
+const HOT_THRESHOLD = 150;
+
+const OPEN_PR_PATHS = [PR_001, PR_AGENT_FULL]
+  .filter((p) => !["merged", "rejected"].includes(p.status))
+  .map((p) => p.documentPath);
+
+function lineMix(path: string) {
+  const entry = DOCS[path];
+  if (!entry) return { total: 0, human: 0, approved: 0, unverified: 0 };
+  const blocks = parseBlocks(entry.content);
+  let approved = 0;
+  let unverified = 0;
+  for (const b of blocks) {
+    const m = entry.marks?.[b.text];
+    if (m === "agent_approved") approved++;
+    else if (m === "agent_unverified") unverified++;
+  }
+  return { total: blocks.length, human: blocks.length - approved - unverified, approved, unverified };
+}
+
+const openRequestsFor = (path: string): number =>
+  TICKETS.filter((t) => t.state === "open" && (t.documentPath === path || t.relatedPaths?.includes(path))).length +
+  OPEN_PR_PATHS.filter((p) => p === path).length;
+
+const hasConflict = (path: string): boolean =>
+  TICKETS.some((t) => t.state === "open" && t.type === "conflict" && (t.documentPath === path || t.relatedPaths?.includes(path)));
+
+function buildFileInsight(path: string): FileInsight {
+  const meta = FILE_META[path]!;
+  const lines = lineMix(path);
+  const openRequests = openRequestsFor(path);
+  const flags: InsightFlag[] = [];
+  if (hasConflict(path)) flags.push("conflict");
+  if (lines.unverified > 0) flags.push("unverified");
+  if (meta.freshness === "stale" || meta.freshness === "expired") flags.push("stale");
+  if (meta.reads === 0) flags.push("never_read");
+  else if (meta.reads < RARE_THRESHOLD) flags.push("rarely_read");
+  if (openRequests > 0) flags.push("open_requests");
+  if (meta.reads >= HOT_THRESHOLD) flags.push("hot");
+  return {
+    path,
+    kind: DOCS[path]?.kind ?? "context",
+    reads: meta.reads,
+    trend: meta.trend,
+    lastReadAt: meta.lastReadAt,
+    lines,
+    openRequests,
+    freshness: meta.freshness,
+    flags,
+  };
+}
+
+const INSIGHTS: InsightsOverview = (() => {
+  const files = DEMO_DOC_PATHS.map(buildFileInsight).sort((a, b) => b.reads - a.reads);
+  return {
+    periodDays: 30,
+    sample: true,
+    files,
+    summary: {
+      rarelyRead: files.filter((f) => f.flags.includes("never_read") || f.flags.includes("rarely_read")).length,
+      unverified: files.filter((f) => f.flags.includes("unverified")).length,
+      stale: files.filter((f) => f.flags.includes("stale")).length,
+      conflicts: TICKETS.filter((t) => t.state === "open" && t.type === "conflict").length,
+      openRequests: files.filter((f) => f.openRequests > 0).length,
+    },
+  };
+})();
+
+// Stable per-block usage, so the editor's "layers" don't jump between renders.
+const hash = (s: string) => {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+};
+
 /** Demo implementations matching the api client signatures. */
 export const demo = {
   getHealth: async (): Promise<HealthOverview> => HEALTH,
+  getInsights: async (): Promise<InsightsOverview> => INSIGHTS,
   getContextPr: async (id: string): Promise<ContextPR | null> =>
     id === "pr-001" ? PR_001 : id === "pr-agent-x1" ? PR_AGENT_FULL : id === "pr-000" ? PR_000_FULL : null,
   listContextPrs: async (): Promise<ContextPrSummary[]> => [PR_AGENT, summarize(PR_001), PR_000],
   getFreshnessOverview: async (): Promise<FreshnessOverview> => FRESHNESS,
   listTickets: async (): Promise<ReviewTicket[]> => TICKETS,
+  createSuggestion: async (body: CreateSuggestionBody): Promise<{ ok: true; ticket: ReviewTicket }> => ({
+    ok: true,
+    ticket: {
+      id: `s-demo-${hash(body.reason)}`,
+      type: body.type,
+      source: "agent",
+      raisedBy: body.agentName ?? "Triage Agent",
+      documentPath: body.documentPath,
+      blockKey: body.blockText ? body.blockText.slice(0, 24).toLowerCase() : "",
+      blockText: body.blockText ?? "",
+      reason: body.reason,
+      relatedPaths: body.relatedPaths,
+      state: "open",
+      createdAt: now,
+      assignee: OWNER_AUTHOR,
+    },
+  }),
   getDistribution: async (): Promise<DistributionStatus> => DISTRIBUTION,
   publishDistribution: async (): Promise<DistributionStatus> => ({ ...DISTRIBUTION, generatedAt: now }),
   getWorkspace: async (): Promise<WorkspaceInfo> => WORKSPACE,
@@ -436,6 +601,11 @@ export const demo = {
     const attributions = parseBlocks(entry.content).map((b) => {
       const conf: Confidence = entry.marks?.[b.text] ?? "human";
       const isAgent = conf !== "human";
+      const isHeading = b.blockType === "heading";
+      const reads = isHeading ? 0 : 30 + (hash(b.text) % 360);
+      const openRequests = TICKETS.filter(
+        (t) => t.state === "open" && t.documentPath === path && t.blockText === b.text,
+      ).length;
       return {
         blockKey: blockKey(b.text),
         attribution: {
@@ -448,6 +618,11 @@ export const demo = {
           confidence: conf,
           // Human edits are self-verified; approved agent edits are verified by the approver.
           verifiedBy: conf === "agent_unverified" ? undefined : conf === "human" ? OWNER.name : "Dana Levi",
+        },
+        insight: {
+          reads,
+          asksAnswered: isHeading ? 0 : Math.round(reads * (0.15 + (hash(b.text + "·a") % 35) / 100)),
+          openRequests,
         },
       };
     });

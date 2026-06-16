@@ -8,6 +8,8 @@ import { createExportRouter } from "./routes/export.js";
 import { createWorkspaceRouter } from "./routes/workspace.js";
 import { createDistributionRouter } from "./routes/distribution.js";
 import { createHealthRouter } from "./routes/health.js";
+import { createInsightsRouter } from "./routes/insights.js";
+import { createSuggestionsRouter } from "./routes/suggestions.js";
 import { createAuthRouter } from "./routes/auth.js";
 import { WorkspaceManager } from "./services/WorkspaceManager.js";
 import { SigningService } from "./services/SigningService.js";
@@ -35,6 +37,8 @@ async function main() {
   app.use("/api/context/export", createExportRouter(wm));
   app.use("/api/context/distribution", createDistributionRouter(wm, signing, auth));
   app.use("/api/context/health", createHealthRouter(wm));
+  app.use("/api/context/insights", createInsightsRouter(wm));
+  app.use("/api/context/suggestions", createSuggestionsRouter(wm));
 
   app.listen(PORT, () => {
     console.log(`[context-studio] server listening on http://localhost:${PORT}`);

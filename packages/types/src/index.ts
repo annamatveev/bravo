@@ -243,7 +243,30 @@ export interface FreshnessOverview {
 
 export type TicketState = "open" | "resolved";
 
-/** A review ticket auto-opened when a block goes stale (or conflicted). */
+/**
+ * What kind of attention a ticket/suggestion needs. `freshness` is raised by
+ * the TTL system; the rest are the things a triage agent (or a human) flags
+ * when reviewing the corpus for quality.
+ *
+ *  freshness   — a block is past its review window.
+ *  conflict    — two files / blocks disagree with each other.
+ *  phrasing    — wording is confusing, ambiguous, or contradictory.
+ *  mismatch    — doesn't match another file, a policy, or reality.
+ *  redundancy  — duplicated or unnecessary text that could be trimmed.
+ *  other       — anything else worth a human's eyes.
+ */
+export type TicketType =
+  | "freshness"
+  | "conflict"
+  | "phrasing"
+  | "mismatch"
+  | "redundancy"
+  | "other";
+
+/** Who raised a ticket/suggestion. */
+export type SuggestionSource = "system" | "agent" | "human";
+
+/** A review ticket — auto-opened by the TTL system, or raised by triage. */
 export interface ReviewTicket {
   id: string;
   documentPath: string;
@@ -254,6 +277,37 @@ export interface ReviewTicket {
   createdAt: string;
   /** The Context Owner the ticket is routed to, if assigned. */
   assignee?: Author;
+  /** What kind of attention this needs (defaults to "freshness"). */
+  type?: TicketType;
+  /** Who raised it (defaults to "system"). */
+  source?: SuggestionSource;
+  /** For conflicts / mismatches: the other file(s) involved. */
+  relatedPaths?: string[];
+  /** Name of the triage agent, when source === "agent". */
+  raisedBy?: string;
+}
+
+/**
+ * Body for POST /api/context/suggestions — the triage-agent feedback API.
+ *
+ * A triage agent (or any external quality check) calls this to file an
+ * improvement request: a conflict between two files, confusing phrasing, a
+ * mismatch, redundant text, etc. It lands in the human's Inbox like any other
+ * item — bravo never auto-edits; a human always reviews.
+ */
+export interface CreateSuggestionBody {
+  type: TicketType;
+  documentPath: string;
+  /** The specific block/line the suggestion is about, if any. */
+  blockText?: string;
+  /** Human-readable rationale shown in the Inbox. */
+  reason: string;
+  /** For conflicts / mismatches: the other file(s) involved. */
+  relatedPaths?: string[];
+  /** Identifies the triage agent raising it (for attribution). */
+  agentId?: string;
+  /** Display name of the triage agent. */
+  agentName?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -337,6 +391,63 @@ export interface HealthOverview {
   hot: KnowledgeArea[]; // read a lot
   cold: KnowledgeArea[]; // never / rarely read
   missing: MissingArea[]; // asked, not found
+}
+
+// ---------------------------------------------------------------------------
+// File-level insights (the dashboard's decision layer)
+// ---------------------------------------------------------------------------
+
+/**
+ * A decision-useful signal about a managed file. These roll up the raw usage,
+ * provenance and governance data into "what should I do about this file?".
+ *
+ *  hot          — heavily read; keep it sharp and correct.
+ *  rarely_read  — low reads vs. peers; candidate to trim or merge.
+ *  never_read   — zero reads; dead weight the agents never touch.
+ *  unverified   — contains agent-written text no human has approved.
+ *  stale        — has blocks past their review window.
+ *  conflict     — disagrees with another file (raised by triage).
+ *  open_requests — has open change requests / suggestions waiting.
+ */
+export type InsightFlag =
+  | "hot"
+  | "rarely_read"
+  | "never_read"
+  | "unverified"
+  | "stale"
+  | "conflict"
+  | "open_requests";
+
+export interface FileInsight {
+  path: string;
+  kind: SourceKind;
+  /** Reads in the reporting window (via the MCP read-proxy). */
+  reads: number;
+  /** Reads per bucket over the window — a per-file sparkline + trend arrow. */
+  trend: number[];
+  lastReadAt?: string;
+  /** Block counts by provenance — drives the confidence-mix bar. */
+  lines: { total: number; human: number; approved: number; unverified: number };
+  /** Open change requests + review suggestions touching this file. */
+  openRequests: number;
+  freshness?: FreshnessState;
+  /** Computed signals, worst-first. */
+  flags: InsightFlag[];
+}
+
+export interface InsightsOverview {
+  periodDays: number;
+  /** Whether these numbers are live (MCP) or seeded sample data. */
+  sample: boolean;
+  files: FileInsight[];
+  /** Roll-ups for the headline insight cards. */
+  summary: {
+    rarelyRead: number;
+    unverified: number;
+    stale: number;
+    conflicts: number;
+    openRequests: number;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -460,13 +571,27 @@ export interface ConfigureWorkspaceBody {
 // Editing (Module 3)
 // ---------------------------------------------------------------------------
 
-/** Live document view for the dual-mode editor (content + per-block attribution). */
+/**
+ * Per-block usage + governance signal, surfaced as always-on "layers" in the
+ * editor margin (not a hover tooltip): how often agents read this block, how
+ * often it answered an ask, and whether anything is open against it.
+ */
+export interface BlockInsight {
+  /** Times agents read this block in the window (via the MCP read-proxy). */
+  reads?: number;
+  /** Times this block answered an agent's ask. */
+  asksAnswered?: number;
+  /** Open change requests / review suggestions touching this block. */
+  openRequests?: number;
+}
+
+/** Live document view for the dual-mode editor (content + per-block layers). */
 export interface DocumentView {
   documentPath: string;
   /** Current authoritative (main) content. */
   content: string;
-  /** Attribution per logical block, aligned to the rendered blocks. */
-  attributions: Array<{ blockKey: string; attribution?: Attribution }>;
+  /** Attribution + usage per logical block, aligned to the rendered blocks. */
+  attributions: Array<{ blockKey: string; attribution?: Attribution; insight?: BlockInsight }>;
   /** Draft PR currently open for this document by the acting user, if any. */
   draftPrId?: string;
 }
