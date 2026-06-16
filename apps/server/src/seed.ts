@@ -15,6 +15,7 @@ import type { Author as DomainAuthor } from "@context-studio/types";
 import { db } from "./lib/db.js";
 import { CONTEXT_REPO_DIR } from "./lib/config.js";
 import { computeBlastEntries } from "./lib/agents.js";
+import { AuthService } from "./services/AuthService.js";
 import { GitService, MAIN_BRANCH } from "./services/GitService.js";
 import { blockKey, computeSemanticDiff } from "./services/SemanticDiffService.js";
 
@@ -122,6 +123,7 @@ Refunds above $500 require a second approver before they are issued.
 
 async function resetDb() {
   // Order matters for FK constraints.
+  await db.apiKey.deleteMany();
   await db.workspace.deleteMany();
   await db.reviewTicket.deleteMany();
   await db.blockFreshness.deleteMany();
@@ -148,6 +150,10 @@ async function main() {
       data: { id: a.id, kind: a.kind, name: a.name, role: a.role ?? null },
     });
   }
+
+  // --- Agent API key (Module 7) ----------------------------------------
+  const auth = new AuthService();
+  const refundKey = await auth.createApiKey(REFUND_AGENT.id, "seed demo key");
 
   // --- Workspace config committed into the repo (.contextstudio.yml) ----
   // The document layout + agent mapping live WITH the content, so they're
@@ -277,6 +283,7 @@ async function main() {
   console.log("[seed] done.");
   console.log("  Sample CPR: pr-001");
   console.log(`  Blast radius: ${blast.length} agent(s) affected`);
+  console.log(`  Agent API key (agent-refunds): ${refundKey}`);
   await db.$disconnect();
 }
 

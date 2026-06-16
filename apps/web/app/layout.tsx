@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { UserMenu } from "@/components/auth/UserMenu";
 
 export const metadata: Metadata = {
   title: "Context Studio",
@@ -43,6 +44,9 @@ export default function RootLayout({
                   Workspace
                 </a>
               </nav>
+              <div className="ml-auto">
+                <UserMenu />
+              </div>
             </div>
           </header>
           <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>

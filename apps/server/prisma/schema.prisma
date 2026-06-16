@@ -27,6 +27,17 @@ model Workspace {
   updatedAt     DateTime @updatedAt
 }
 
+// Hashed API key for an autonomous agent. The raw key is shown once at
+// creation and never stored — only its sha256. Used to authenticate
+// agent-submit so agents can't be impersonated.
+model ApiKey {
+  id        String   @id @default(cuid())
+  agentId   String
+  hashedKey String   @unique
+  label     String?
+  createdAt DateTime @default(now())
+}
+
 model Author {
   id        String   @id
   kind      String // "human" | "agent"

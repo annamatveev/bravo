@@ -5,12 +5,11 @@ import { useRouter } from "next/navigation";
 import type { Attribution, DocumentView } from "@context-studio/types";
 import { autosaveDoc, exportUrls, proposeChange } from "@/lib/api";
 import { parseBlocks, blockKey } from "@/lib/blocks";
+import { getSession } from "@/lib/auth";
 import { AuthorBadge, relativeTime } from "@/components/cpr/ui";
 
 type Mode = "write" | "preview";
 type SaveState = "idle" | "saving" | "saved" | "error";
-
-const ACTING_USER = "user-dana"; // prototype: the signed-in Context Owner
 
 export function Editor({ doc }: { doc: DocumentView }) {
   const router = useRouter();
@@ -33,7 +32,7 @@ export function Editor({ doc }: { doc: DocumentView }) {
       const res = await autosaveDoc({
         documentPath: doc.documentPath,
         content: text,
-        authorId: ACTING_USER,
+        authorId: getSession()?.user.id ?? "user-dana",
       });
       setDraftPrId(res.draftPrId);
       setSaveState("saved");

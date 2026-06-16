@@ -90,6 +90,15 @@ Translates UI verbs into raw Git:
   failure leaves the agent's last-good context untouched. (Tamper-tested.)
 - Surfaced at `apps/web/app/distribution`.
 
+### 7. Auth & permissions — `apps/server/src/services/AuthService.ts`
+- **Human sessions**: a signed (HMAC) bearer token issued at login (pick-user
+  stands in for SSO; no passwords). The acting reviewer is derived from the
+  token — you can only act as yourself, and only if you're a reviewer on the PR.
+- **Agent API keys**: random key shown once, stored only as sha256; required on
+  `agent-submit`, so agents can't be impersonated.
+- Reads stay open (LAN-trusted); writes/merges are gated. Login at
+  `apps/web/app/login`; session in client `lib/auth.ts`.
+
 ## Tech stack
 
 | Layer    | Choice                                            |

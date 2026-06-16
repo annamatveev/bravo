@@ -23,6 +23,7 @@ import {
 import { computeSemanticDiff } from "../services/SemanticDiffService.js";
 import { DistributionService } from "../services/DistributionService.js";
 import type { SigningService } from "../services/SigningService.js";
+import { AuthService, bearer } from "../services/AuthService.js";
 import type { WorkspaceManager } from "../services/WorkspaceManager.js";
 
 /** Resolve the active workspace or send 409 — null means "handled, stop". */
@@ -35,7 +36,11 @@ function requireWorkspace(wm: WorkspaceManager, res: Response) {
   return ctx;
 }
 
-export function createPrRouter(wm: WorkspaceManager, signing: SigningService): Router {
+export function createPrRouter(
+  wm: WorkspaceManager,
+  signing: SigningService,
+  auth: AuthService,
+): Router {
   const router = Router();
 
   router.get("/", async (_req, res) => {
@@ -65,7 +70,6 @@ export function createPrRouter(wm: WorkspaceManager, signing: SigningService): R
   });
 
   const approvalSchema = z.object({
-    reviewerId: z.string().min(1),
     action: z.enum(["approve", "request_changes", "reject"]),
     comment: z.string().optional(),
     blastRadiusAcknowledged: z.boolean().optional(),
@@ -74,6 +78,22 @@ export function createPrRouter(wm: WorkspaceManager, signing: SigningService): R
   router.post("/:id/approve", async (req, res) => {
     const ctx = requireWorkspace(wm, res);
     if (!ctx) return;
+
+    // The acting reviewer is derived from the session — you can only act as
+    // yourself, never via a reviewerId in the body.
+    const reviewerId = await auth.verifySession(bearer(req.headers.authorization), Date.now());
+    if (!reviewerId) {
+      res.status(401).json({ error: "Sign in to review." });
+      return;
+    }
+    const onPr = await db.reviewer.findFirst({
+      where: { prId: req.params.id, authorId: reviewerId },
+    });
+    if (!onPr) {
+      res.status(403).json({ error: "You are not a reviewer on this change request." });
+      return;
+    }
+
     const parsed = approvalSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.flatten() });
@@ -82,7 +102,9 @@ export function createPrRouter(wm: WorkspaceManager, signing: SigningService): R
     try {
       const result = await new PrService(ctx.git).applyApproval({
         prId: req.params.id,
-        ...parsed.data,
+        reviewerId,
+        action: parsed.data.action,
+        blastRadiusAcknowledged: parsed.data.blastRadiusAcknowledged,
       });
       if (result.merged) {
         await wm.publishCurrent(); // push approved main back to the canonical store
@@ -110,8 +132,6 @@ export function createPrRouter(wm: WorkspaceManager, signing: SigningService): R
   });
 
   const agentSubmitSchema = z.object({
-    agentId: z.string().min(1),
-    agentName: z.string().min(1),
     documentPath: z.string().min(1),
     title: z.string().min(1),
     description: z.string().min(1),
@@ -121,6 +141,20 @@ export function createPrRouter(wm: WorkspaceManager, signing: SigningService): R
   router.post("/agent-submit", async (req, res) => {
     const ctx = requireWorkspace(wm, res);
     if (!ctx) return;
+
+    // The agent's identity comes from its API key, never the request body —
+    // a caller can't claim to be an agent it doesn't hold the key for.
+    const agentId = await auth.authenticateAgent(bearer(req.headers.authorization));
+    if (!agentId) {
+      res.status(401).json({ error: "Valid agent API key required.", code: "AGENT_KEY_REQUIRED" });
+      return;
+    }
+    const agent = await db.author.findUnique({ where: { id: agentId } });
+    if (!agent || agent.kind !== "agent") {
+      res.status(403).json({ error: "API key is not bound to a known agent." });
+      return;
+    }
+
     const parsed = agentSubmitSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.flatten() });
@@ -130,17 +164,11 @@ export function createPrRouter(wm: WorkspaceManager, signing: SigningService): R
     const prId = `pr-agent-${Date.now().toString(36)}`;
 
     try {
-      await db.author.upsert({
-        where: { id: body.agentId },
-        update: { name: body.agentName },
-        create: { id: body.agentId, kind: "agent", name: body.agentName, role: "Autonomous agent" },
-      });
-
       const { branch } = await ctx.git.autosaveDraft({
         prId,
         docPath: body.documentPath,
         content: body.proposedContent,
-        author: { id: body.agentId, kind: "agent", name: body.agentName },
+        author: { id: agent.id, kind: "agent", name: agent.name },
       });
 
       const before = await ctx.git.readDocument(MAIN_BRANCH, body.documentPath);
@@ -158,7 +186,7 @@ export function createPrRouter(wm: WorkspaceManager, signing: SigningService): R
           origin: "agent",
           documentPath: body.documentPath,
           draftBranch: branch,
-          authorId: body.agentId,
+          authorId: agent.id,
           reviewers: owner
             ? { create: [{ authorId: owner.id, decision: "pending", required: true }] }
             : undefined,

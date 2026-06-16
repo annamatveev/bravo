@@ -246,6 +246,22 @@ export interface ReviewTicket {
 }
 
 // ---------------------------------------------------------------------------
+// Auth (Module 7 — identity & permissions)
+// ---------------------------------------------------------------------------
+
+/** The authenticated human acting in the UI. */
+export interface SessionUser {
+  id: string;
+  name: string;
+  role?: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: SessionUser;
+}
+
+// ---------------------------------------------------------------------------
 // Workspace (Module 5 — binding to an external context store)
 // ---------------------------------------------------------------------------
 

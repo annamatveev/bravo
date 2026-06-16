@@ -1,7 +1,9 @@
 import type {
-  ApprovalRequestBody,
+  ApprovalAction,
   ApprovalResponse,
   AutosaveResponse,
+  LoginResponse,
+  SessionUser,
   ConfigureWorkspaceBody,
   ContextPR,
   ContextPrSummary,
@@ -137,14 +139,38 @@ export const exportUrls = {
   fcontext: `${API_BASE}/api/context/export/fcontext`,
 };
 
-/** Submit an approval decision (client-side). */
+// --- Auth (Module 7) -----------------------------------------------------
+
+/** Selectable human identities for the login picker. */
+export async function getUsers(): Promise<SessionUser[]> {
+  const res = await fetch(`${API_BASE}/api/context/auth/users`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to load users: ${res.status}`);
+  return (await res.json()) as SessionUser[];
+}
+
+/** Log in as an author (issues a session token). */
+export async function login(authorId: string): Promise<LoginResponse> {
+  const res = await fetch(`${API_BASE}/api/context/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ authorId }),
+  });
+  if (!res.ok) throw new Error(`Login failed: ${res.status}`);
+  return (await res.json()) as LoginResponse;
+}
+
+/**
+ * Submit an approval decision. The acting reviewer is derived from the session
+ * token (authHeader), never the body — you can only act as yourself.
+ */
 export async function submitApproval(
   id: string,
-  body: ApprovalRequestBody,
+  body: { action: ApprovalAction; blastRadiusAcknowledged?: boolean },
+  authHeader: Record<string, string>,
 ): Promise<{ ok: true; data: ApprovalResponse } | { ok: false; error: string; code?: string }> {
   const res = await fetch(`${API_BASE}/api/context/pr/${id}/approve`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeader },
     body: JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({}));

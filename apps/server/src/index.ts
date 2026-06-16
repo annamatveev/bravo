@@ -7,8 +7,10 @@ import { createDocRouter } from "./routes/doc.js";
 import { createExportRouter } from "./routes/export.js";
 import { createWorkspaceRouter } from "./routes/workspace.js";
 import { createDistributionRouter } from "./routes/distribution.js";
+import { createAuthRouter } from "./routes/auth.js";
 import { WorkspaceManager } from "./services/WorkspaceManager.js";
 import { SigningService } from "./services/SigningService.js";
+import { AuthService } from "./services/AuthService.js";
 import { startFreshnessWorker } from "./worker.js";
 
 async function main() {
@@ -17,14 +19,16 @@ async function main() {
   const wm = new WorkspaceManager();
   await wm.init();
   const signing = new SigningService();
+  const auth = new AuthService();
 
   const app = express();
   app.use(cors());
   app.use(express.json({ limit: "2mb" }));
 
   app.get("/health", (_req, res) => res.json({ ok: true }));
+  app.use("/api/context/auth", createAuthRouter(auth));
   app.use("/api/context/workspace", createWorkspaceRouter(wm));
-  app.use("/api/context/pr", createPrRouter(wm, signing));
+  app.use("/api/context/pr", createPrRouter(wm, signing, auth));
   app.use("/api/context/governance", createGovernanceRouter(wm));
   app.use("/api/context/doc", createDocRouter(wm));
   app.use("/api/context/export", createExportRouter(wm));

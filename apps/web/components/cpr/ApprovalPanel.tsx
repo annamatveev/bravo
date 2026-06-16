@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ApprovalAction, ContextPR } from "@context-studio/types";
+import type { ApprovalAction, ContextPR, SessionUser } from "@context-studio/types";
 import { submitApproval } from "@/lib/api";
+import { authHeaders, getSession } from "@/lib/auth";
 import { AuthorBadge } from "./ui";
 
 const DECISION_MARK: Record<string, { icon: string; className: string; label: string }> = {
@@ -16,18 +18,19 @@ export function ApprovalPanel({ pr }: { pr: ContextPR }) {
   const router = useRouter();
   const requiredReviewers = pr.reviewers.filter((r) => r.required);
 
-  // Prototype: act as one of the reviewers. Default to the first still-pending.
-  const defaultReviewer =
-    requiredReviewers.find((r) => r.decision === "pending")?.author.id ??
-    pr.reviewers[0]?.author.id ??
-    "";
-  const [actingAs, setActingAs] = useState(defaultReviewer);
+  // The acting reviewer is the signed-in user; the server enforces identity.
+  const [user, setUser] = useState<SessionUser | null>(null);
+  useEffect(() => {
+    setUser(getSession()?.user ?? null);
+  }, []);
+
   const [acknowledged, setAcknowledged] = useState(false);
   const [busy, setBusy] = useState<ApprovalAction | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const isHighBlast = pr.blastRadius.maxSeverity === "high";
   const isTerminal = pr.status === "merged" || pr.status === "rejected";
+  const isReviewer = !!user && pr.reviewers.some((r) => r.author.id === user.id);
 
   const approvalsMet = useMemo(
     () => requiredReviewers.every((r) => r.decision === "approved"),
@@ -40,11 +43,11 @@ export function ApprovalPanel({ pr }: { pr: ContextPR }) {
   async function act(action: ApprovalAction) {
     setError(null);
     setBusy(action);
-    const res = await submitApproval(pr.id, {
-      reviewerId: actingAs,
-      action,
-      blastRadiusAcknowledged: acknowledged,
-    });
+    const res = await submitApproval(
+      pr.id,
+      { action, blastRadiusAcknowledged: acknowledged },
+      authHeaders(),
+    );
     setBusy(null);
     if (!res.ok) {
       setError(
@@ -99,21 +102,24 @@ export function ApprovalPanel({ pr }: { pr: ContextPR }) {
 
       <div className="h-px bg-black/5" />
 
-      {/* Act-as selector (prototype affordance) */}
-      <label className="block text-xs font-medium text-muted">
-        Reviewing as
-        <select
-          value={actingAs}
-          onChange={(e) => setActingAs(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-black/10 bg-white px-2 py-1.5 text-sm text-ink"
-        >
-          {pr.reviewers.map((r) => (
-            <option key={r.author.id} value={r.author.id}>
-              {r.author.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      {/* Session identity — the server enforces who can act */}
+      {!user ? (
+        <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+          <Link href="/login" className="font-medium text-indigo-600 hover:underline">
+            Sign in
+          </Link>{" "}
+          to review this change request.
+        </p>
+      ) : !isReviewer ? (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Signed in as <span className="font-medium">{user.name}</span> — you’re not a reviewer on
+          this request, so you can’t act on it.
+        </p>
+      ) : (
+        <p className="text-xs text-muted">
+          Reviewing as <span className="font-medium text-ink">{user.name}</span>
+        </p>
+      )}
 
       {/* High blast-radius merge gate */}
       {isHighBlast && (
@@ -135,12 +141,12 @@ export function ApprovalPanel({ pr }: { pr: ContextPR }) {
         <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
       )}
 
-      {/* Actions */}
+      {/* Actions — only an actual reviewer can act */}
       <div className="flex flex-col gap-2">
         <button
           onClick={() => act("approve")}
-          disabled={busy !== null}
-          className="w-full rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+          disabled={busy !== null || !isReviewer}
+          className="w-full rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
         >
           {busy === "approve"
             ? "Submitting…"
@@ -153,15 +159,15 @@ export function ApprovalPanel({ pr }: { pr: ContextPR }) {
         <div className="flex gap-2">
           <button
             onClick={() => act("request_changes")}
-            disabled={busy !== null}
-            className="flex-1 rounded-lg border border-black/10 px-4 py-2 text-sm font-medium text-ink transition hover:bg-black/[0.03] disabled:opacity-50"
+            disabled={busy !== null || !isReviewer}
+            className="flex-1 rounded-lg border border-black/10 px-4 py-2 text-sm font-medium text-ink transition hover:bg-black/[0.03] disabled:opacity-40"
           >
             Request changes
           </button>
           <button
             onClick={() => act("reject")}
-            disabled={busy !== null}
-            className="flex-1 rounded-lg border border-rose-200 px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:opacity-50"
+            disabled={busy !== null || !isReviewer}
+            className="flex-1 rounded-lg border border-rose-200 px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:opacity-40"
           >
             Reject
           </button>
