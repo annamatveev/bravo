@@ -4,10 +4,10 @@
   "private": true,
   "description": "Context Studio — a Context Management IDE for non-technical Context Owners",
   "scripts": {
-    "dev": "pnpm --parallel --filter ./apps/* dev",
+    "dev": "pnpm --parallel --filter \"./apps/*\" run dev",
     "dev:web": "pnpm --filter @context-studio/web dev",
     "dev:server": "pnpm --filter @context-studio/server dev",
-    "build": "pnpm --filter ./packages/* build && pnpm --filter ./apps/* build",
+    "build": "pnpm --filter \"./packages/*\" run build && pnpm --filter \"./apps/*\" run build",
     "typecheck": "pnpm -r typecheck",
     "seed": "pnpm --filter @context-studio/server seed",
     "setup": "pnpm install && pnpm --filter @context-studio/server prisma:generate && pnpm seed"
