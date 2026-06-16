@@ -10,9 +10,9 @@ export default async function GovernancePage() {
     [freshness, tickets] = await Promise.all([getFreshnessOverview(), listTickets()]);
   } catch {
     return (
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-6">
-        <h1 className="text-lg font-semibold text-amber-900">Couldn’t reach the backend</h1>
-        <p className="mt-1 text-sm text-amber-800">Start the server and reload.</p>
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6">
+        <h1 className="text-lg font-semibold text-amber-900 dark:text-amber-200">Couldn’t reach the backend</h1>
+        <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">Start the server and reload.</p>
       </div>
     );
   }
@@ -28,10 +28,10 @@ export default async function GovernancePage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Fresh" value={freshness.counts.fresh} tone="text-emerald-700" />
-        <Stat label="Stale" value={freshness.counts.stale} tone="text-amber-700" />
-        <Stat label="Expired" value={freshness.counts.expired} tone="text-rose-700" />
-        <Stat label="Conflicted" value={freshness.counts.conflicted} tone="text-fuchsia-700" />
+        <Stat label="Fresh" value={freshness.counts.fresh} tone="text-emerald-700 dark:text-emerald-300" />
+        <Stat label="Stale" value={freshness.counts.stale} tone="text-amber-700 dark:text-amber-300" />
+        <Stat label="Expired" value={freshness.counts.expired} tone="text-rose-700 dark:text-rose-300" />
+        <Stat label="Conflicted" value={freshness.counts.conflicted} tone="text-fuchsia-700 dark:text-fuchsia-300" />
       </div>
 
       {/* Open review tickets */}
@@ -39,7 +39,7 @@ export default async function GovernancePage() {
         <h2 className="text-sm font-semibold text-muted">
           Open review tickets ({tickets.length})
         </h2>
-        <div className="divide-y divide-black/5 overflow-hidden rounded-xl border border-black/5 bg-white shadow-sm">
+        <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
           {tickets.length === 0 ? (
             <div className="px-5 py-6 text-sm text-muted">
               No open tickets — all context is within its review window.
@@ -75,7 +75,7 @@ export default async function GovernancePage() {
         <h2 className="text-sm font-semibold text-muted">
           Blocks needing attention ({freshness.attention.length} of {freshness.total})
         </h2>
-        <div className="divide-y divide-black/5 overflow-hidden rounded-xl border border-black/5 bg-white shadow-sm">
+        <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
           {freshness.attention.length === 0 ? (
             <div className="px-5 py-6 text-sm text-muted">Everything is fresh.</div>
           ) : (
@@ -100,7 +100,7 @@ export default async function GovernancePage() {
 
 function Stat({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
-    <div className="rounded-xl border border-black/5 bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-line bg-surface p-4 shadow-sm">
       <div className={`text-2xl font-semibold ${tone}`}>{value}</div>
       <div className="text-xs text-muted">{label} blocks</div>
     </div>

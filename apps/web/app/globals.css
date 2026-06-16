@@ -2,10 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---- Theme tokens -------------------------------------------------------
+   Light + dark resolved via CSS variables. Components reference Tailwind
+   tokens (bg-surface, text-ink, border-line, brand, …) so both modes stay
+   consistent without per-element dark: variants. */
+
 :root {
+  --bg: #f5f6fa;
+  --surface: #ffffff;
+  --surface-2: #eef0f6;
+  --line: rgba(20, 22, 38, 0.08);
+  --hover: rgba(20, 22, 38, 0.045);
+  --text: #1b2030;
+  --text-muted: #6b7184;
+
+  --brand: #6c4cf0; /* violet */
+  --brand-2: #14b8c4; /* cyan/teal */
+  --brand-soft: rgba(108, 76, 240, 0.1);
+  --brand-ink: #6c4cf0;
+
+  --added-inline: #bfead0;
+  --removed-inline: #f4cdc8;
+
   color-scheme: light;
 }
 
+.dark {
+  --bg: #0c0e15;
+  --surface: #151926;
+  --surface-2: #1d2333;
+  --line: rgba(255, 255, 255, 0.1);
+  --hover: rgba(255, 255, 255, 0.06);
+  --text: #e7eaf3;
+  --text-muted: #9aa3b8;
+
+  --brand: #9b86ff;
+  --brand-2: #3ddbe6;
+  --brand-soft: rgba(155, 134, 255, 0.16);
+  --brand-ink: #b9aaff;
+
+  --added-inline: rgba(31, 157, 87, 0.28);
+  --removed-inline: rgba(210, 72, 59, 0.3);
+
+  color-scheme: dark;
+}
+
 body {
-  @apply bg-canvas text-ink antialiased;
+  background-color: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Subtle brand wash behind the app for a bit more life. */
+.app-bg {
+  background-image: radial-gradient(
+      60rem 30rem at 110% -10%,
+      var(--brand-soft),
+      transparent 60%
+    ),
+    radial-gradient(50rem 25rem at -10% 0%, rgba(20, 184, 196, 0.06), transparent 55%);
 }

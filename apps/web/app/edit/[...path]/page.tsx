@@ -43,9 +43,9 @@ export default async function EditPage({
 
 function ErrorState({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-6">
-      <h1 className="text-lg font-semibold text-amber-900">{title}</h1>
-      <p className="mt-1 text-sm text-amber-800">{body}</p>
+    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6">
+      <h1 className="text-lg font-semibold text-amber-900 dark:text-amber-200">{title}</h1>
+      <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">{body}</p>
     </div>
   );
 }

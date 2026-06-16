@@ -11,7 +11,9 @@ export function AuthorBadge({ author, className = "" }: { author: Author; classN
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
-        isAgent ? "bg-indigo-50 text-indigo-700" : "bg-slate-100 text-slate-700"
+        isAgent
+          ? "bg-indigo-500/12 text-indigo-700 dark:text-indigo-300"
+          : "bg-surface2 text-muted"
       } ${className}`}
       title={author.role ?? (isAgent ? "Autonomous agent" : "Person")}
     >
@@ -22,9 +24,9 @@ export function AuthorBadge({ author, className = "" }: { author: Author; classN
 }
 
 const SEVERITY_STYLE: Record<BlastSeverity, string> = {
-  low: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-  medium: "bg-amber-50 text-amber-700 ring-amber-600/20",
-  high: "bg-rose-50 text-rose-700 ring-rose-600/20",
+  low: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 ring-emerald-500/25",
+  medium: "bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-amber-500/25",
+  high: "bg-rose-500/12 text-rose-700 dark:text-rose-300 ring-rose-500/25",
 };
 
 export function SeverityPill({ severity }: { severity: BlastSeverity }) {
@@ -38,12 +40,12 @@ export function SeverityPill({ severity }: { severity: BlastSeverity }) {
 }
 
 const STATUS_LABEL: Record<PrStatus, { label: string; className: string }> = {
-  draft: { label: "Draft", className: "bg-slate-100 text-slate-600" },
-  in_review: { label: "In review", className: "bg-blue-50 text-blue-700" },
-  changes_requested: { label: "Changes requested", className: "bg-amber-50 text-amber-700" },
-  approved: { label: "Approved", className: "bg-emerald-50 text-emerald-700" },
-  merged: { label: "Merged", className: "bg-indigo-50 text-indigo-700" },
-  rejected: { label: "Rejected", className: "bg-rose-50 text-rose-700" },
+  draft: { label: "Draft", className: "bg-surface2 text-muted" },
+  in_review: { label: "In review", className: "bg-blue-500/12 text-blue-700 dark:text-blue-300" },
+  changes_requested: { label: "Changes requested", className: "bg-amber-500/15 text-amber-700 dark:text-amber-300" },
+  approved: { label: "Approved", className: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300" },
+  merged: { label: "Merged", className: "bg-indigo-500/12 text-indigo-700 dark:text-indigo-300" },
+  rejected: { label: "Rejected", className: "bg-rose-500/12 text-rose-700 dark:text-rose-300" },
 };
 
 export function StatusBadge({ status }: { status: PrStatus }) {
@@ -56,10 +58,10 @@ export function StatusBadge({ status }: { status: PrStatus }) {
 }
 
 const FRESHNESS_STYLE: Record<FreshnessState, { label: string; className: string }> = {
-  fresh: { label: "Fresh", className: "bg-emerald-50 text-emerald-700 ring-emerald-600/20" },
-  stale: { label: "Stale", className: "bg-amber-50 text-amber-700 ring-amber-600/20" },
-  expired: { label: "Expired", className: "bg-rose-50 text-rose-700 ring-rose-600/20" },
-  conflicted: { label: "Conflicted", className: "bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-600/20" },
+  fresh: { label: "Fresh", className: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 ring-emerald-500/25" },
+  stale: { label: "Stale", className: "bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-amber-500/25" },
+  expired: { label: "Expired", className: "bg-rose-500/12 text-rose-700 dark:text-rose-300 ring-rose-500/25" },
+  conflicted: { label: "Conflicted", className: "bg-fuchsia-500/12 text-fuchsia-700 dark:text-fuchsia-300 ring-fuchsia-500/25" },
 };
 
 export function FreshnessPill({ state }: { state: FreshnessState }) {

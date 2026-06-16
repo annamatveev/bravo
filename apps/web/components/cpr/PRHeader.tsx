@@ -17,7 +17,7 @@ export function PRHeader({ pr }: { pr: ContextPR }) {
         <StatusBadge status={pr.status} />
       </div>
 
-      <p className="max-w-prose text-[15px] leading-relaxed text-slate-600">
+      <p className="max-w-prose text-[15px] leading-relaxed text-muted">
         {pr.description}
       </p>
 
@@ -25,7 +25,7 @@ export function PRHeader({ pr }: { pr: ContextPR }) {
         <span>Opened by</span>
         <AuthorBadge author={pr.author} />
         {pr.origin === "agent" && (
-          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+          <span className="rounded-full bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300">
             submitted via Agent API
           </span>
         )}

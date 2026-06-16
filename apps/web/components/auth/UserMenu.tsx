@@ -31,7 +31,7 @@ export function UserMenu() {
           setUser(null);
           router.refresh();
         }}
-        className="rounded-md px-2 py-1 text-xs text-muted hover:bg-black/[0.04] hover:text-ink"
+        className="rounded-md px-2 py-1 text-xs text-muted hover:bg-hover hover:text-ink"
       >
         Sign out
       </button>

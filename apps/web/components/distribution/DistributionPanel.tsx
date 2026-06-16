@@ -39,22 +39,22 @@ export function DistributionPanel() {
         <button
           onClick={publish}
           disabled={busy}
-          className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+          className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
         >
           {busy ? "Publishing…" : "Publish now"}
         </button>
       </div>
 
-      {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+      {error && <p className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-300">{error}</p>}
 
       {!status?.published ? (
-        <div className="rounded-xl border border-black/5 bg-white p-6 text-sm text-muted shadow-sm">
+        <div className="rounded-xl border border-line bg-surface p-6 text-sm text-muted shadow-sm">
           Nothing published yet. Approving a Context PR publishes automatically, or click
           “Publish now”.
         </div>
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-4 rounded-xl border border-black/5 bg-white p-4 text-sm shadow-sm">
+          <div className="flex flex-wrap items-center gap-4 rounded-xl border border-line bg-surface p-4 text-sm shadow-sm">
             <div>
               <div className="text-xs text-muted">Bundle version</div>
               <div className="font-mono">{status.version}</div>
@@ -63,7 +63,7 @@ export function DistributionPanel() {
               <div className="text-xs text-muted">Published</div>
               <div>{status.generatedAt && new Date(status.generatedAt).toLocaleString()}</div>
             </div>
-            <div className="flex items-center gap-1 text-emerald-700">
+            <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
               <span aria-hidden>🔏</span> ed25519 signed
             </div>
           </div>
@@ -72,7 +72,7 @@ export function DistributionPanel() {
             <h2 className="text-sm font-semibold text-muted">
               Per-agent slices ({status.agents.length})
             </h2>
-            <div className="divide-y divide-black/5 overflow-hidden rounded-xl border border-black/5 bg-white shadow-sm">
+            <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
               {status.agents.map((a) => (
                 <div key={a.agentId} className="flex items-center justify-between gap-3 px-5 py-3">
                   <div className="min-w-0">
@@ -91,7 +91,7 @@ export function DistributionPanel() {
           </section>
 
           {status.publicKeyPem && (
-            <details className="rounded-xl border border-black/5 bg-white p-4 text-sm shadow-sm">
+            <details className="rounded-xl border border-line bg-surface p-4 text-sm shadow-sm">
               <summary className="cursor-pointer font-medium">
                 Public key (pin this on agent hosts)
               </summary>

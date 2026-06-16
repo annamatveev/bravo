@@ -67,7 +67,7 @@ export function Editor({ doc }: { doc: DocumentView }) {
           <button
             disabled={!draftPrId || !dirty && saveState !== "saved"}
             onClick={() => setShowPropose(true)}
-            className="rounded-lg bg-ink px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
+            className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
           >
             Propose change
           </button>
@@ -75,13 +75,13 @@ export function Editor({ doc }: { doc: DocumentView }) {
       </div>
 
       {/* Dual-mode toggle */}
-      <div className="inline-flex rounded-lg border border-black/10 bg-white p-0.5 text-sm">
+      <div className="inline-flex rounded-lg border border-line bg-surface p-0.5 text-sm">
         {(["write", "preview"] as Mode[]).map((m) => (
           <button
             key={m}
             onClick={() => setMode(m)}
             className={`rounded-md px-3 py-1 capitalize ${
-              mode === m ? "bg-ink text-white" : "text-muted hover:text-ink"
+              mode === m ? "bg-brand text-white" : "text-muted hover:text-ink"
             }`}
           >
             {m}
@@ -94,7 +94,7 @@ export function Editor({ doc }: { doc: DocumentView }) {
           value={content}
           onChange={(e) => setContent(e.target.value)}
           spellCheck={false}
-          className="h-[28rem] w-full resize-y rounded-xl border border-black/10 bg-white p-4 font-mono text-sm leading-relaxed text-ink shadow-sm focus:outline-none focus:ring-2 focus:ring-ink/20"
+          className="h-[28rem] w-full resize-y rounded-xl border border-line bg-surface p-4 font-mono text-sm leading-relaxed text-ink shadow-sm focus:outline-none focus:ring-2 focus:ring-ink/20"
         />
       ) : (
         <Preview content={content} attribByKey={attribByKey} />
@@ -128,7 +128,7 @@ function Preview({
 }) {
   const blocks = parseBlocks(content);
   return (
-    <div className="rounded-xl border border-black/5 bg-white p-2 shadow-sm">
+    <div className="rounded-xl border border-line bg-surface p-2 shadow-sm">
       {blocks.map((b, i) => {
         const key = blockKey(b.text);
         const attribution = attribByKey.get(key);
@@ -136,7 +136,7 @@ function Preview({
           <BlockRow key={`${key}-${i}`} block={b} attribution={attribution} />
         );
       })}
-      <p className="border-t border-black/5 px-3 py-2 text-xs text-muted">
+      <p className="border-t border-line px-3 py-2 text-xs text-muted">
         Hover any line for its attribution. New or edited lines are unattributed until merged.
       </p>
     </div>
@@ -167,19 +167,19 @@ function BlockRow({
 
   return (
     <div
-      className="relative flex items-start gap-2 rounded-md px-3 py-1.5 hover:bg-black/[0.02]"
+      className="relative flex items-start gap-2 rounded-md px-3 py-1.5 hover:bg-hover"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
       <span
         className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
-          attribution ? "bg-slate-300" : "bg-emerald-400"
+          attribution ? "bg-muted" : "bg-emerald-400"
         }`}
         aria-hidden
       />
       <div className="flex-1">{inner}</div>
       {hover && (
-        <div className="absolute right-3 top-1 z-10 w-72 rounded-lg border border-black/10 bg-white p-3 text-xs shadow-lg">
+        <div className="absolute right-3 top-1 z-10 w-72 rounded-lg border border-line bg-surface p-3 text-xs shadow-lg">
           {attribution ? (
             <>
               <div className="mb-1 flex items-center gap-1.5 text-muted">
@@ -192,7 +192,7 @@ function BlockRow({
               </a>
             </>
           ) : (
-            <span className="text-emerald-700">New / edited — unattributed until merged.</span>
+            <span className="text-emerald-700 dark:text-emerald-300">New / edited — unattributed until merged.</span>
           )}
         </div>
       )}
@@ -202,12 +202,12 @@ function BlockRow({
 
 function ExportMenu() {
   return (
-    <div className="flex items-center gap-1 rounded-lg border border-black/10 bg-white px-1 py-1 text-xs">
+    <div className="flex items-center gap-1 rounded-lg border border-line bg-surface px-1 py-1 text-xs">
       <span className="px-1 text-muted">Export</span>
-      <a href={exportUrls.llmsTxt} target="_blank" className="rounded px-1.5 py-0.5 hover:bg-black/5">
+      <a href={exportUrls.llmsTxt} target="_blank" className="rounded px-1.5 py-0.5 hover:bg-surface2">
         llms.txt
       </a>
-      <a href={exportUrls.fcontext} target="_blank" className="rounded px-1.5 py-0.5 hover:bg-black/5">
+      <a href={exportUrls.fcontext} target="_blank" className="rounded px-1.5 py-0.5 hover:bg-surface2">
         .fcontext
       </a>
     </div>
@@ -246,7 +246,7 @@ function ProposeDialog({
 
   return (
     <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
-      <div className="w-full max-w-md space-y-3 rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md space-y-3 rounded-xl bg-surface p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold">Propose change</h2>
         <p className="text-sm text-muted">
           This opens a Context PR for review. Your autosaves stay private until then.
@@ -256,23 +256,23 @@ function ProposeDialog({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Title (e.g. Clarify refund eligibility)"
-          className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-line px-3 py-2 text-sm"
         />
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Why this change?"
-          className="h-24 w-full resize-none rounded-lg border border-black/10 px-3 py-2 text-sm"
+          className="h-24 w-full resize-none rounded-lg border border-line px-3 py-2 text-sm"
         />
         {error && <p className="text-sm text-rose-600">{error}</p>}
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-lg border border-black/10 px-3 py-1.5 text-sm">
+          <button onClick={onClose} className="rounded-lg border border-line px-3 py-1.5 text-sm">
             Cancel
           </button>
           <button
             onClick={submit}
             disabled={busy}
-            className="rounded-lg bg-ink px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+            className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
           >
             {busy ? "Opening…" : "Open Context PR"}
           </button>

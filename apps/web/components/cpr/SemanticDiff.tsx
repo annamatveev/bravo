@@ -8,8 +8,8 @@ import { SemanticDiffBlock } from "./SemanticDiffBlock";
  */
 export function SemanticDiff({ diff }: { diff: Diff }) {
   return (
-    <section className="rounded-xl border border-black/5 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-black/5 px-5 py-3">
+    <section className="rounded-xl border border-line bg-surface shadow-sm">
+      <div className="flex items-center justify-between border-b border-line px-5 py-3">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold">Proposed changes</h2>
           <span className="text-xs text-muted">{diff.documentPath}</span>
@@ -21,13 +21,13 @@ export function SemanticDiff({ diff }: { diff: Diff }) {
         </div>
       </div>
 
-      <div className="divide-y divide-black/[0.03] px-2 py-2">
+      <div className="divide-y divide-line px-2 py-2">
         {diff.blocks.map((block) => (
           <SemanticDiffBlock key={block.id} block={block} />
         ))}
       </div>
 
-      <p className="border-t border-black/5 px-5 py-2.5 text-xs text-muted">
+      <p className="border-t border-line px-5 py-2.5 text-xs text-muted">
         Hover any line to see who wrote it and which change request introduced it.
       </p>
     </section>

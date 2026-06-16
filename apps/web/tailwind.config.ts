@@ -1,34 +1,40 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  content: [
-    "./app/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-  ],
+  darkMode: "class",
+  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        // Calm, wiki-like palette — deliberately not a dev tool's red/green.
-        ink: "#1f2430",
-        muted: "#6b7280",
-        canvas: "#f7f8fa",
-        added: {
-          bg: "#eaf6ee",
-          accent: "#1f8a4c",
-          inline: "#bdebcd",
+        // Theme tokens — resolved from CSS variables that flip in dark mode.
+        canvas: "var(--bg)",
+        surface: "var(--surface)",
+        surface2: "var(--surface-2)",
+        line: "var(--line)",
+        hover: "var(--hover)",
+        ink: "var(--text)",
+        muted: "var(--text-muted)",
+        // Brand identity — a violet→cyan signature, distinct from the
+        // semantic palette (emerald/amber/rose/indigo) used for status.
+        brand: {
+          DEFAULT: "var(--brand)",
+          2: "var(--brand-2)",
+          soft: "var(--brand-soft)",
+          ink: "var(--brand-ink)",
         },
-        removed: {
-          bg: "#fbecec",
-          accent: "#b4453a",
-          inline: "#f3c9c4",
-        },
-        modified: {
-          bg: "#fef6e7",
-          accent: "#b9821f",
-        },
+        // Semantic accents (work on both themes).
+        added: { accent: "#1f9d57", inline: "var(--added-inline)" },
+        removed: { accent: "#d2483b", inline: "var(--removed-inline)" },
+        modified: { accent: "#c98a1e" },
       },
       fontFamily: {
         sans: ["ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+      },
+      boxShadow: {
+        card: "0 1px 2px rgba(16,18,28,0.04), 0 1px 3px rgba(16,18,28,0.06)",
+      },
+      backgroundImage: {
+        "brand-gradient": "linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%)",
       },
     },
   },

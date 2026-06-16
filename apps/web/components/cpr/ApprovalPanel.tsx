@@ -64,9 +64,9 @@ export function ApprovalPanel({ pr }: { pr: ContextPR }) {
 
   if (isTerminal) {
     return (
-      <section className="rounded-xl border border-black/5 bg-white p-4 shadow-sm">
+      <section className="rounded-xl border border-line bg-surface p-4 shadow-sm">
         <h2 className="text-sm font-semibold">Approval</h2>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-muted">
           This change request is{" "}
           <span className="font-medium">{pr.status === "merged" ? "merged" : "rejected"}</span>.
           {pr.status === "merged" &&
@@ -77,7 +77,7 @@ export function ApprovalPanel({ pr }: { pr: ContextPR }) {
   }
 
   return (
-    <section className="space-y-4 rounded-xl border border-black/5 bg-white p-4 shadow-sm">
+    <section className="space-y-4 rounded-xl border border-line bg-surface p-4 shadow-sm">
       <h2 className="text-sm font-semibold">Approval routing</h2>
 
       {/* Reviewer roster */}
@@ -89,7 +89,7 @@ export function ApprovalPanel({ pr }: { pr: ContextPR }) {
               <div className="flex items-center gap-2">
                 <AuthorBadge author={r.author} />
                 {r.required && (
-                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] uppercase text-muted">
+                  <span className="rounded bg-surface2 px-1.5 py-0.5 text-[10px] uppercase text-muted">
                     required
                   </span>
                 )}
@@ -102,18 +102,18 @@ export function ApprovalPanel({ pr }: { pr: ContextPR }) {
         })}
       </ul>
 
-      <div className="h-px bg-black/5" />
+      <div className="h-px bg-surface2" />
 
       {/* Session identity — the server enforces who can act */}
       {!user ? (
-        <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+        <p className="rounded-lg bg-surface2 px-3 py-2 text-sm text-muted">
           <Link href="/login" className="font-medium text-indigo-600 hover:underline">
             Sign in
           </Link>{" "}
           to review this change request.
         </p>
       ) : !isReviewer ? (
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
           Signed in as <span className="font-medium">{user.name}</span> — you’re not a reviewer on
           this request, so you can’t act on it.
         </p>
@@ -125,7 +125,7 @@ export function ApprovalPanel({ pr }: { pr: ContextPR }) {
 
       {/* High blast-radius merge gate */}
       {isHighBlast && (
-        <label className="flex items-start gap-2 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">
+        <label className="flex items-start gap-2 rounded-lg bg-rose-500/10 p-3 text-sm text-rose-800 dark:text-rose-200">
           <input
             type="checkbox"
             checked={acknowledged}
@@ -140,7 +140,7 @@ export function ApprovalPanel({ pr }: { pr: ContextPR }) {
       )}
 
       {error && (
-        <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
+        <p className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-300">{error}</p>
       )}
 
       {/* Actions — only an actual reviewer can act */}
@@ -148,7 +148,7 @@ export function ApprovalPanel({ pr }: { pr: ContextPR }) {
         <button
           onClick={() => act("approve")}
           disabled={busy !== null || !isReviewer}
-          className="w-full rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
+          className="w-full rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
         >
           {busy === "approve"
             ? "Submitting…"
@@ -162,14 +162,14 @@ export function ApprovalPanel({ pr }: { pr: ContextPR }) {
           <button
             onClick={() => act("request_changes")}
             disabled={busy !== null || !isReviewer}
-            className="flex-1 rounded-lg border border-black/10 px-4 py-2 text-sm font-medium text-ink transition hover:bg-black/[0.03] disabled:opacity-40"
+            className="flex-1 rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink transition hover:bg-hover disabled:opacity-40"
           >
             Request changes
           </button>
           <button
             onClick={() => act("reject")}
             disabled={busy !== null || !isReviewer}
-            className="flex-1 rounded-lg border border-rose-200 px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:opacity-40"
+            className="flex-1 rounded-lg border border-rose-500/30 px-4 py-2 text-sm font-medium text-rose-700 dark:text-rose-300 transition hover:bg-rose-500/10 disabled:opacity-40"
           >
             Reject
           </button>

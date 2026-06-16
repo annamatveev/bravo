@@ -41,9 +41,9 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+      {error && <p className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-300">{error}</p>}
 
-      <div className="divide-y divide-black/5 overflow-hidden rounded-xl border border-black/5 bg-white shadow-sm">
+      <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
         {users.length === 0 ? (
           <div className="px-5 py-6 text-sm text-muted">No users found.</div>
         ) : (
@@ -52,7 +52,7 @@ export default function LoginPage() {
               key={u.id}
               onClick={() => pick(u.id)}
               disabled={busy !== null}
-              className="flex w-full items-center justify-between px-5 py-3 text-left transition hover:bg-black/[0.02] disabled:opacity-50"
+              className="flex w-full items-center justify-between px-5 py-3 text-left transition hover:bg-hover disabled:opacity-50"
             >
               <div className="flex items-center gap-2">
                 <AuthorBadge author={{ id: u.id, kind: "human", name: u.name, role: u.role }} />

@@ -22,9 +22,9 @@ export default async function Dashboard() {
     [prs, freshness] = await Promise.all([listContextPrs(), getFreshnessOverview()]);
   } catch {
     return (
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-6">
-        <h1 className="text-lg font-semibold text-amber-900">Couldn’t reach the backend</h1>
-        <p className="mt-1 text-sm text-amber-800">
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6">
+        <h1 className="text-lg font-semibold text-amber-900 dark:text-amber-200">Couldn’t reach the backend</h1>
+        <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
           Start it with <code>pnpm dev:server</code> (default http://localhost:4000), then reload.
         </p>
       </div>
@@ -45,7 +45,7 @@ export default async function Dashboard() {
         </div>
         <Link
           href="/edit/policies/refunds.md"
-          className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+          className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
         >
           + Edit a policy
         </Link>
@@ -53,10 +53,10 @@ export default async function Dashboard() {
 
       {/* Governance snapshot */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Fresh" value={freshness.counts.fresh} tone="text-emerald-700" />
-        <Stat label="Stale" value={freshness.counts.stale} tone="text-amber-700" />
-        <Stat label="Expired" value={freshness.counts.expired} tone="text-rose-700" />
-        <Stat label="Conflicted" value={freshness.counts.conflicted} tone="text-fuchsia-700" />
+        <Stat label="Fresh" value={freshness.counts.fresh} tone="text-emerald-700 dark:text-emerald-300" />
+        <Stat label="Stale" value={freshness.counts.stale} tone="text-amber-700 dark:text-amber-300" />
+        <Stat label="Expired" value={freshness.counts.expired} tone="text-rose-700 dark:text-rose-300" />
+        <Stat label="Conflicted" value={freshness.counts.conflicted} tone="text-fuchsia-700 dark:text-fuchsia-300" />
       </div>
 
       <Section title={`Open (${open.length})`}>
@@ -80,7 +80,7 @@ export default async function Dashboard() {
 
 function Stat({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
-    <div className="rounded-xl border border-black/5 bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-line bg-surface p-4 shadow-sm">
       <div className={`text-2xl font-semibold ${tone}`}>{value}</div>
       <div className="text-xs text-muted">{label} blocks</div>
     </div>
@@ -91,7 +91,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <section className="space-y-2">
       <h2 className="text-sm font-semibold text-muted">{title}</h2>
-      <div className="divide-y divide-black/5 overflow-hidden rounded-xl border border-black/5 bg-white shadow-sm">
+      <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
         {children}
       </div>
     </section>
@@ -110,13 +110,13 @@ function PrRow({
   return (
     <Link
       href={`/pr/${pr.id}`}
-      className="flex items-center justify-between gap-4 px-5 py-3 transition hover:bg-black/[0.02]"
+      className="flex items-center justify-between gap-4 px-5 py-3 transition hover:bg-hover"
     >
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <span className="truncate font-medium">{pr.title}</span>
           {pr.origin === "agent" && (
-            <span className="shrink-0 rounded-full bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700">
+            <span className="shrink-0 rounded-full bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 dark:text-indigo-300">
               agent
             </span>
           )}

@@ -43,7 +43,7 @@ export function SetupWizard({ initial }: { initial: WorkspaceInfo }) {
         </p>
       </div>
 
-      <div className="space-y-5 rounded-xl border border-black/5 bg-white p-5 shadow-sm">
+      <div className="space-y-5 rounded-xl border border-line bg-surface p-5 shadow-sm">
         {/* Source type */}
         <div>
           <label className="text-xs font-medium text-muted">Where does the context live?</label>
@@ -90,12 +90,12 @@ export function SetupWizard({ initial }: { initial: WorkspaceInfo }) {
           in that repo, so they stay versioned with your content.
         </p>
 
-        {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+        {error && <p className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-300">{error}</p>}
 
         <button
           onClick={submit}
           disabled={busy}
-          className="w-full rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+          className="w-full rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
         >
           {busy ? "Connecting…" : "Connect workspace"}
         </button>
@@ -119,11 +119,11 @@ function SourceCard({
     <button
       onClick={onClick}
       className={`rounded-lg border p-3 text-left transition ${
-        active ? "border-ink bg-black/[0.03]" : "border-black/10 hover:border-black/20"
+        active ? "border-ink bg-hover" : "border-line hover:border-line"
       }`}
     >
       <div className="flex items-center gap-2 text-sm font-medium">
-        <span className={`h-2 w-2 rounded-full ${active ? "bg-ink" : "bg-slate-300"}`} aria-hidden />
+        <span className={`h-2 w-2 rounded-full ${active ? "bg-brand" : "bg-muted"}`} aria-hidden />
         {title}
       </div>
       <p className="mt-1 text-xs text-muted">{body}</p>
@@ -151,7 +151,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-ink ${
+        className={`mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm text-ink ${
           mono ? "font-mono" : ""
         }`}
       />

@@ -5,9 +5,9 @@ import type { SemanticDiffBlock as Block } from "@context-studio/types";
 import { AuthorBadge, relativeTime } from "./ui";
 
 const RAIL: Record<Block["kind"], string> = {
-  added: "border-l-added-accent bg-added-bg/60",
-  removed: "border-l-removed-accent bg-removed-bg/50",
-  modified: "border-l-modified-accent bg-modified-bg/60",
+  added: "border-l-added-accent bg-added-accent/10",
+  removed: "border-l-removed-accent bg-removed-accent/10",
+  modified: "border-l-modified-accent bg-modified-accent/10",
   unchanged: "border-l-transparent bg-transparent",
 };
 
@@ -70,7 +70,7 @@ function Typographic({ block, children }: { block: Block; children: React.ReactN
     return <pre className="overflow-x-auto rounded bg-slate-900/90 p-3 text-sm text-slate-100">{children}</pre>;
   }
   if (block.blockType === "quote") {
-    return <blockquote className="border-l-2 border-slate-300 pl-3 italic text-slate-600">{children}</blockquote>;
+    return <blockquote className="border-l-2 border-line pl-3 italic text-muted">{children}</blockquote>;
   }
   return <div>{children}</div>;
 }
@@ -100,7 +100,7 @@ export function SemanticDiffBlock({ block }: { block: Block }) {
 
       {/* Attribution Gutter: a non-technical `git blame`, on hover. */}
       {attribution && hovered && (
-        <div className="absolute left-4 z-10 mt-1 w-72 rounded-lg border border-black/10 bg-white p-3 text-xs shadow-lg">
+        <div className="absolute left-4 z-10 mt-1 w-72 rounded-lg border border-line bg-surface p-3 text-xs shadow-lg">
           <div className="mb-1.5 flex items-center gap-1.5 text-muted">
             <span>Authored by</span>
             <AuthorBadge author={attribution.author} />
