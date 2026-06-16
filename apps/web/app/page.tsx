@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getFreshnessOverview, getWorkspace, listContextPrs } from "@/lib/api";
 import { AuthorBadge, SeverityPill, StatusBadge, relativeTime } from "@/components/cpr/ui";
 import { Hint } from "@/components/ui/Tooltip";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { WelcomeGuide } from "@/components/onboarding/WelcomeGuide";
 
 export const dynamic = "force-dynamic";
@@ -40,16 +41,18 @@ export default async function Dashboard() {
     <div className="space-y-8">
       <WelcomeGuide />
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+        <div className="space-y-2">
+          <SectionLabel n={1}>The Ledger</SectionLabel>
+          <h1 className="flex items-center gap-2 text-3xl font-semibold tracking-tight">
             Change Requests
             <Hint>
               Each row is a proposed change to your context, opened by a person or an agent.
               Click one to review its diff, impact, and checks, then approve or request changes.
             </Hint>
           </h1>
-          <p className="mt-1 max-w-prose text-sm text-muted">
-            Review and authorize proposed changes to the context that feeds your autonomous agents.
+          <p className="max-w-prose text-sm text-muted">
+            Your agents’ context, on the record. Every change is reviewed, attributed, and signed
+            before it ships — your data, your reviewers.
           </p>
         </div>
         <Link
@@ -60,15 +63,17 @@ export default async function Dashboard() {
         </Link>
       </div>
 
-      {/* Governance snapshot */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Fresh" value={freshness.counts.fresh} tone="text-emerald-700 dark:text-emerald-300" />
-        <Stat label="Stale" value={freshness.counts.stale} tone="text-amber-700 dark:text-amber-300" />
-        <Stat label="Expired" value={freshness.counts.expired} tone="text-rose-700 dark:text-rose-300" />
-        <Stat label="Conflicted" value={freshness.counts.conflicted} tone="text-fuchsia-700 dark:text-fuchsia-300" />
-      </div>
+      <section className="space-y-3">
+        <SectionLabel n={2}>Context health</SectionLabel>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat label="Fresh" value={freshness.counts.fresh} tone="text-emerald-700 dark:text-emerald-300" />
+          <Stat label="Stale" value={freshness.counts.stale} tone="text-amber-700 dark:text-amber-300" />
+          <Stat label="Expired" value={freshness.counts.expired} tone="text-rose-700 dark:text-rose-300" />
+          <Stat label="Conflicted" value={freshness.counts.conflicted} tone="text-fuchsia-700 dark:text-fuchsia-300" />
+        </div>
+      </section>
 
-      <Section title={`Open (${open.length})`}>
+      <Section n={3} title={`Open · ${open.length}`}>
         {open.length === 0 ? (
           <Empty>No open change requests.</Empty>
         ) : (
@@ -77,7 +82,7 @@ export default async function Dashboard() {
       </Section>
 
       {closed.length > 0 && (
-        <Section title={`Closed (${closed.length})`}>
+        <Section n={4} title={`Closed · ${closed.length}`}>
           {closed.map((pr) => (
             <PrRow key={pr.id} pr={pr} />
           ))}
@@ -106,11 +111,19 @@ function Stat({ label, value, tone }: { label: string; value: number; tone: stri
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  n,
+  title,
+  children,
+}: {
+  n: number;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
-    <section className="space-y-2">
-      <h2 className="text-sm font-semibold text-muted">{title}</h2>
-      <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+    <section className="space-y-3">
+      <SectionLabel n={n}>{title}</SectionLabel>
+      <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card">
         {children}
       </div>
     </section>

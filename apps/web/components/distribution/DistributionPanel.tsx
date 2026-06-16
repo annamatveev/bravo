@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { DistributionStatus } from "@context-studio/types";
 import { getDistribution, publishDistribution } from "@/lib/api";
 import { Hint } from "@/components/ui/Tooltip";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 
 export function DistributionPanel() {
   const [status, setStatus] = useState<DistributionStatus | null>(null);
@@ -29,8 +30,9 @@ export function DistributionPanel() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+        <div className="space-y-2">
+          <SectionLabel n={1}>Data plane</SectionLabel>
+          <h1 className="flex items-center gap-2 text-3xl font-semibold tracking-tight">
             Distribution
             <Hint>
               How approved context reaches your agents. Each agent gets only the documents it’s

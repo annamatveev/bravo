@@ -1,6 +1,7 @@
 import { getFreshnessOverview, listTickets } from "@/lib/api";
 import { AuthorBadge, FreshnessPill, relativeTime } from "@/components/cpr/ui";
 import { Hint } from "@/components/ui/Tooltip";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 
 const STATE_HINTS: Record<string, string> = {
   Fresh: "Reviewed recently, within its review window. Trusted.",
@@ -27,8 +28,9 @@ export default async function GovernancePage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+      <div className="space-y-2">
+        <SectionLabel n={1}>Freshness &amp; Governance</SectionLabel>
+        <h1 className="flex items-center gap-2 text-3xl font-semibold tracking-tight">
           Governance
           <Hint>
             An expiry date on knowledge. Each block of context moves through fresh → stale →
