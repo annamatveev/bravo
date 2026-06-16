@@ -46,7 +46,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </span>
               </Link>
               <nav className="ml-3 flex items-center gap-0.5 text-sm">
-                <NavLink href="/changes" hint="Review and approve proposed changes to your context. The queue of change requests.">
+                <NavLink href="/queue" hint="One triage queue — change requests, review tickets, missing data, and unread areas, with filters.">
+                  Queue
+                </NavLink>
+                <NavLink href="/changes" hint="Just the change-request list: proposed edits to approve.">
                   Change Requests
                 </NavLink>
                 <NavLink href="/governance" hint="Track how fresh each piece of context is. Stale items are auto-flagged for review.">

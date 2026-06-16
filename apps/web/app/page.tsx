@@ -35,6 +35,11 @@ export default async function Dashboard() {
   }
 
   const openCount = prs.filter((p) => !["merged", "rejected"].includes(p.status)).length;
+  const queueCount =
+    openCount +
+    tickets.length +
+    health.missing.length +
+    health.cold.filter((c) => c.reads === 0).length;
 
   return (
     <div className="space-y-8">
@@ -49,9 +54,17 @@ export default async function Dashboard() {
             couldn’t find. {health.sample && <span className="text-accent">Sample data — live once the MCP read-proxy is connected.</span>}
           </p>
         </div>
-        <Link href="/welcome" className="text-sm font-medium text-brand hover:underline">
-          How bravo works →
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/welcome" className="text-sm font-medium text-brand hover:underline">
+            How bravo works →
+          </Link>
+          <Link
+            href="/queue"
+            className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+          >
+            Review queue · {queueCount} →
+          </Link>
+        </div>
       </div>
 
       {/* headline numbers */}
