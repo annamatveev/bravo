@@ -12,6 +12,7 @@ import type {
   DocumentView,
   EvalReport,
   FreshnessOverview,
+  HealthOverview,
   ReviewTicket,
   WorkspaceInfo,
 } from "@context-studio/types";
@@ -48,6 +49,14 @@ export async function getEvals(id: string): Promise<EvalReport> {
   const res = await fetch(`${apiBase()}/api/context/pr/${id}/evals`, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to run evals: ${res.status}`);
   return (await res.json()) as EvalReport;
+}
+
+/** Agent health overview for the main dashboard. */
+export async function getHealth(): Promise<HealthOverview> {
+  if (DEMO) return demo.getHealth();
+  const res = await fetch(`${apiBase()}/api/context/health`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to load health: ${res.status}`);
+  return (await res.json()) as HealthOverview;
 }
 
 /** Current workspace binding (server-side, uncached). */

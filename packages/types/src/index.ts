@@ -293,6 +293,40 @@ export interface AuthConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Agent health (the main dashboard) — what the agent reads, ignores, and misses
+// ---------------------------------------------------------------------------
+
+/** A piece of knowledge the agent can read, with usage. */
+export interface KnowledgeArea {
+  path: string;
+  kind: SourceKind;
+  /** Reads in the reporting window (via the MCP read-proxy). */
+  reads: number;
+  lastReadAt?: string;
+  freshness?: FreshnessState;
+}
+
+/** Something the agent looked for but found no answer (from the feedback API). */
+export interface MissingArea {
+  query: string;
+  /** What the agent was trying to do when it looked. */
+  intent?: string;
+  misses: number;
+  lastAskedAt?: string;
+}
+
+export interface HealthOverview {
+  periodDays: number;
+  totalReads: number;
+  totalMisses: number;
+  /** Whether these numbers are live (MCP) or seeded sample data. */
+  sample: boolean;
+  hot: KnowledgeArea[]; // read a lot
+  cold: KnowledgeArea[]; // never / rarely read
+  missing: MissingArea[]; // asked, not found
+}
+
+// ---------------------------------------------------------------------------
 // Workspace (Module 5 — binding to an external context store)
 // ---------------------------------------------------------------------------
 

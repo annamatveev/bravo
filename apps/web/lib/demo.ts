@@ -14,6 +14,7 @@ import type {
   DistributionStatus,
   DocumentView,
   EvalReport,
+  HealthOverview,
   FreshnessOverview,
   LoginResponse,
   ReviewTicket,
@@ -257,8 +258,34 @@ const EVALS: EvalReport = {
   ],
 };
 
+const HEALTH: HealthOverview = {
+  periodDays: 30,
+  totalReads: 1284,
+  totalMisses: 41,
+  sample: true,
+  hot: [
+    { path: "policies/refunds.md › Refund Windows", kind: "context", reads: 372, lastReadAt: ago(0.2), freshness: "fresh" },
+    { path: "policies/refunds.md › Eligibility", kind: "context", reads: 248, lastReadAt: ago(0.5), freshness: "fresh" },
+    { path: "skills/issue-refund.md › Steps", kind: "skills", reads: 197, lastReadAt: ago(0.3), freshness: "fresh" },
+    { path: "policies/refunds.md › Refund Policy", kind: "context", reads: 140, lastReadAt: ago(1), freshness: "stale" },
+    { path: "skills/lookup-order.md › Steps", kind: "skills", reads: 96, lastReadAt: ago(1) },
+  ],
+  cold: [
+    { path: "policies/refunds.md › Escalation", kind: "context", reads: 0, freshness: "expired" },
+    { path: "memory/known-edge-cases.md › Gift cards", kind: "memory", reads: 0 },
+    { path: "skills/escalate-to-human.md › Steps", kind: "skills", reads: 0 },
+    { path: "policies/refunds.md › Original packaging", kind: "context", reads: 2, lastReadAt: ago(12) },
+  ],
+  missing: [
+    { query: "international / cross-border refunds", intent: "Answer a customer about an EU order", misses: 14, lastAskedAt: ago(0.4) },
+    { query: "subscription cancellation & proration", intent: "Cancel a monthly plan mid-cycle", misses: 9, lastAskedAt: ago(1) },
+    { query: "chargeback handling steps", intent: "Respond to a disputed charge", misses: 5, lastAskedAt: ago(3) },
+  ],
+};
+
 /** Demo implementations matching the api client signatures. */
 export const demo = {
+  getHealth: async (): Promise<HealthOverview> => HEALTH,
   getContextPr: async (id: string): Promise<ContextPR | null> =>
     id === "pr-001" ? PR_001 : id === "pr-agent-x1" ? PR_AGENT_FULL : id === "pr-000" ? PR_000_FULL : null,
   listContextPrs: async (): Promise<ContextPrSummary[]> => [PR_AGENT, summarize(PR_001), PR_000],
