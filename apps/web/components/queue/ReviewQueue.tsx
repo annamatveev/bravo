@@ -285,25 +285,32 @@ function Row({ item }: { item: QueueItem }) {
         </span>
       </button>
 
-      {open && (
-        <div className="space-y-3 border-t border-line bg-surface2/40 px-5 py-3">
-          {item.body && <p className="text-sm text-ink/90">{item.body}</p>}
-          {item.quote && (
-            <blockquote className="border-l-2 border-brand/40 pl-3 text-xs italic text-muted">{item.quote}</blockquote>
-          )}
-          <div className="flex flex-wrap gap-2">
-            {links.map((l) => (
-              <Link
-                key={l.href + l.label}
-                href={l.href}
-                className="rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-brand transition hover:bg-hover"
-              >
-                {l.label} →
-              </Link>
-            ))}
+      {/* Animated expand: grid-rows 0fr→1fr smoothly reveals the explanation. */}
+      <div
+        className={`grid transition-all duration-200 ease-out ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+        aria-hidden={!open}
+      >
+        <div className="overflow-hidden">
+          <div className="space-y-3 border-t border-line bg-surface2/40 px-5 py-3">
+            {item.body && <p className="text-sm text-ink/90">{item.body}</p>}
+            {item.quote && (
+              <blockquote className="border-l-2 border-brand/40 pl-3 text-xs italic text-muted">{item.quote}</blockquote>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {links.map((l) => (
+                <Link
+                  key={l.href + l.label}
+                  href={l.href}
+                  tabIndex={open ? 0 : -1}
+                  className="rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-brand transition hover:bg-hover"
+                >
+                  {l.label} →
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
