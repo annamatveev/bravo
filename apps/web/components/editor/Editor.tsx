@@ -67,10 +67,13 @@ export function Editor({
   doc,
   files,
   currentPath,
+  fileReads,
 }: {
   doc: DocumentView;
   files: Array<{ path: string; kind: string }>;
   currentPath: string;
+  /** File-level read count (reads are tracked per file, not per line). */
+  fileReads?: number;
 }) {
   const router = useRouter();
   const [content, setContent] = useState(doc.content);
@@ -180,10 +183,17 @@ export function Editor({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-mono text-sm text-muted">{currentPath}</h1>
+          <h1 className="flex flex-wrap items-center gap-x-2 font-mono text-sm text-muted">
+            {currentPath}
+            {typeof fileReads === "number" && (
+              <span className="rounded-full bg-surface2 px-2 py-0.5 text-[11px] text-muted">
+                {fileReads.toLocaleString()} reads · 30d
+              </span>
+            )}
+          </h1>
           <p className="text-xs text-muted">
-            Each line shows who wrote it, how agents use it, and any open requests. Hover a line to add, edit, note, or
-            delete — or select text for a precise edit. Autosaves privately until you propose.
+            The left rail shows who wrote each line. Hover a line to see details and to add, edit, note, or delete —
+            or select text for a precise edit. Autosaves privately until you propose.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -408,51 +418,47 @@ function Block({
     <span className="text-ink/90">{inner}</span>
   );
 
+  // Shown only on hover — the left rail colour already encodes confidence.
   const who = meta
     ? conf === "agent_unverified"
-      ? `Written by ${attribution!.author.name} · not yet reviewed`
-      : `Verified by ${attribution!.verifiedBy ?? (attribution!.author.kind === "human" ? attribution!.author.name : "a reviewer")}${attribution!.author.kind === "agent" ? ` · written by ${attribution!.author.name}` : ""} · ${relativeTime(attribution!.mergedAt)}`
-    : "No attribution yet";
+      ? `${attribution!.author.name} · not yet reviewed`
+      : `Verified by ${attribution!.verifiedBy ?? attribution!.author.name} · ${relativeTime(attribution!.mergedAt)}`
+    : null;
+  const openReqs = insight?.openRequests ?? 0;
 
   return (
     <div
       id={`blk-${idx}`}
-      className={`group relative grid grid-cols-1 gap-1 border-l-2 py-2 pl-3 pr-1 leading-[1.7] transition-colors hover:bg-hover/40 md:grid-cols-[1fr_9.5rem] md:gap-4 ${meta?.rail ?? "border-transparent"}`}
+      className={`group relative border-l-2 py-2 pl-3 pr-12 leading-[1.7] transition-colors hover:bg-hover/40 ${meta?.rail ?? "border-transparent"}`}
     >
       {/* The written content — selectable for partial edits. */}
       <div data-bi={idx} className="min-w-0">{content}</div>
 
-      {/* Always-on layers: who/confidence · usage · open requests. */}
-      <aside className="space-y-1 text-[11px] md:text-right">
-        <div className="flex items-center gap-1.5 md:justify-end" title={who}>
-          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: meta?.dot ?? "var(--type-default)" }} />
-          <span className={`font-medium ${meta?.cls ?? "text-muted"}`}>{meta?.short ?? "Unattributed"}</span>
-        </div>
-        {!isHeading && (insight?.reads ?? 0) > 0 && (
-          <div className="text-muted" title={`Read ${insight!.reads} times by agents · answered an ask ${insight!.asksAnswered ?? 0} times`}>
-            {insight!.reads!.toLocaleString()} reads · {insight!.asksAnswered ?? 0} answered
-          </div>
-        )}
-        {(insight?.openRequests ?? 0) > 0 && (
-          <div className="md:flex md:justify-end">
-            <Link
-              href="/inbox"
-              className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-medium"
-              style={{ background: "rgba(9,105,218,0.12)", color: "#0969da" }}
-              title="Open change requests / review items touch this line"
-            >
-              ● {insight!.openRequests} open
-            </Link>
-          </div>
-        )}
-      </aside>
+      {/* Always-on: a quiet open-requests marker (hidden while hovering). */}
+      {openReqs > 0 && (
+        <Link
+          href="/inbox"
+          title={`${openReqs} open request${openReqs === 1 ? "" : "s"} on this line`}
+          className="absolute right-2 top-2 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium transition-opacity group-hover:opacity-0"
+          style={{ background: "rgba(9,105,218,0.12)", color: "#0969da" }}
+        >
+          {openReqs} open
+        </Link>
+      )}
 
-      {/* Hover action bar — add / edit / note / delete this line. */}
-      <div className="absolute right-1 top-1 z-10 hidden items-center gap-0.5 rounded-md border border-line bg-surface p-0.5 shadow-sm group-hover:flex">
-        <RowBtn title="Add line below" onClick={() => onAdd(idx)}>＋</RowBtn>
-        {!isHeading && <RowBtn title="Edit this line" onClick={() => onEdit(idx, block.text)}>✎</RowBtn>}
-        {!isHeading && <RowBtn title="Leave a note" onClick={() => onNote(idx, block.text)}>💬</RowBtn>}
-        {!isHeading && <RowBtn title="Delete this line" onClick={() => onDelete(idx, block.text)}>🗑️</RowBtn>}
+      {/* On hover: who/when + line actions, in one compact panel. */}
+      <div className="absolute right-2 top-1.5 z-10 hidden flex-col items-end gap-1 group-hover:flex">
+        {who && (
+          <span className="whitespace-nowrap rounded-md border border-line bg-surface px-2 py-0.5 text-[11px] text-muted shadow-sm">
+            {who}
+          </span>
+        )}
+        <div className="flex items-center gap-0.5 rounded-md border border-line bg-surface p-0.5 shadow-sm">
+          <RowBtn title="Add line below" onClick={() => onAdd(idx)}>＋</RowBtn>
+          {!isHeading && <RowBtn title="Edit this line" onClick={() => onEdit(idx, block.text)}>✎</RowBtn>}
+          {!isHeading && <RowBtn title="Leave a note" onClick={() => onNote(idx, block.text)}>💬</RowBtn>}
+          {!isHeading && <RowBtn title="Delete this line" onClick={() => onDelete(idx, block.text)}>🗑️</RowBtn>}
+        </div>
       </div>
     </div>
   );

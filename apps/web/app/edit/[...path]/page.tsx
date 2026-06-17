@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getDocumentView, getWorkspace } from "@/lib/api";
+import { getDocumentView, getInsights, getWorkspace } from "@/lib/api";
 import { Editor } from "@/components/editor/Editor";
 import { DEMO_DOC_PATHS } from "@/lib/demo";
 
@@ -23,11 +23,16 @@ export default async function EditPage({
 
   let doc;
   let files: Array<{ path: string; kind: string }> = [];
+  let fileReads: number | undefined;
   try {
-    [doc, files] = await Promise.all([
+    const [d, f, insights] = await Promise.all([
       getDocumentView(documentPath, ACTING_USER),
       getWorkspace().then((w) => w.files).catch(() => []),
+      getInsights().catch(() => null),
     ]);
+    doc = d;
+    files = f;
+    fileReads = insights?.files.find((x) => x.path === documentPath)?.reads;
   } catch {
     return <ErrorState title="Couldn’t reach the backend" body="Start the server and reload." />;
   }
@@ -46,7 +51,7 @@ export default async function EditPage({
       <Link href="/" className="text-sm text-muted hover:text-ink">
         ← Dashboard
       </Link>
-      <Editor doc={doc} files={files} currentPath={documentPath} />
+      <Editor doc={doc} files={files} currentPath={documentPath} fileReads={fileReads} />
     </div>
   );
 }
