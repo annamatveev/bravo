@@ -32,9 +32,9 @@ export function DistributionPanel() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-2">
-          <SectionLabel n={1}>Data plane</SectionLabel>
+          <SectionLabel n={1}>Releases</SectionLabel>
           <h1 className="flex items-center gap-2 text-3xl font-semibold tracking-tight">
-            Distribution
+            Releases
             <Hint>
               How approved context reaches your agents. Each agent gets only the documents it’s
               authorized for, signed so the agent can verify it wasn’t tampered with before using it.

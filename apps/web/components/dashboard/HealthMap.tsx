@@ -4,10 +4,9 @@ import type { FileInsight, InsightFlag, MissingArea } from "@context-studio/type
 /**
  * Health map — the context owner's "what needs me" overview.
  *
- * Files are plotted by impact (reads) vs risk (conflicts / unverified AI /
- * staleness / open requests). The dangerous quadrant is top-right: heavily-read
- * files that are also risky. A ranked attention list and the top unanswered
- * asks sit alongside.
+ * Each dot is a file, placed by impact (how much agents read it, →) and risk
+ * (conflicts / unverified AI / staleness / open requests, ↑). Top-right = fix
+ * first; bottom-right = healthy & relied-on. Dots link to the file.
  */
 
 const FLAG_INFO: Partial<Record<InsightFlag, { color: string; label: string }>> = {
@@ -41,17 +40,14 @@ function reason(f: FileInsight): string {
   if (f.flags.includes("rarely_read")) return "Rarely read — candidate to trim";
   return "Healthy";
 }
+const shortName = (path: string) => path.split("/").slice(1).join("/") || path;
 
 export function HealthMap({ files, missing }: { files: FileInsight[]; missing: MissingArea[] }) {
-  const W = 360;
-  const H = 250;
-  const m = 30;
   const maxReads = Math.max(...files.map((f) => f.reads), 1);
   const maxRisk = Math.max(...files.map(risk), 1);
-  const mapX = (reads: number) => m + (reads / maxReads) * (W - 2 * m);
-  const mapY = (rk: number) => H - m - (rk / maxRisk) * (H - 2 * m);
-  const hotX = mapX(Math.min(150, maxReads * 0.6));
-  const riskY = mapY(0.75);
+  // sqrt x-scale spreads out the many low-read files; y is linear risk.
+  const xPct = (reads: number) => 7 + Math.sqrt(reads / maxReads) * 86;
+  const yPct = (rk: number) => 9 + (rk / maxRisk) * 82;
 
   const attention = [...files]
     .filter((f) => risk(f) > 0 || f.flags.includes("rarely_read") || f.flags.includes("never_read"))
@@ -61,25 +57,51 @@ export function HealthMap({ files, missing }: { files: FileInsight[]; missing: M
   return (
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_19rem]">
       <div className="rounded-xl border border-line bg-surface p-4 shadow-card">
-        <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.15em] text-muted">Impact vs risk</div>
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full text-muted" role="img" aria-label="Files plotted by reads versus risk">
-          <line x1={hotX} y1={m - 8} x2={hotX} y2={H - m} stroke="currentColor" strokeWidth="1" strokeDasharray="3 3" opacity="0.25" />
-          <line x1={m} y1={riskY} x2={W - m} y2={riskY} stroke="currentColor" strokeWidth="1" strokeDasharray="3 3" opacity="0.25" />
-          <text x={W - m} y={m - 1} textAnchor="end" fill="currentColor" fontSize="9.5" opacity="0.75">fix first ↗</text>
-          <text x={m} y={m - 1} fill="currentColor" fontSize="9.5" opacity="0.6">review / trim</text>
-          <text x={W - m} y={H - 6} textAnchor="end" fill="currentColor" fontSize="9.5" opacity="0.6">more read →</text>
-          <text x={m} y={H - 6} fill="currentColor" fontSize="9.5" opacity="0.6">relied-on &amp; healthy</text>
+        <div className="mb-1 flex items-center justify-between">
+          <span className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted">Impact vs risk</span>
+          <span className="text-[11px] text-muted">each dot = a file · click to open</span>
+        </div>
+
+        <div className="relative mt-2 h-72 w-full">
+          {/* quadrant tints */}
+          <div className="absolute left-1/2 top-0 h-1/2 w-1/2 rounded-tr-lg" style={{ background: "rgba(217,70,239,0.05)" }} />
+          <div className="absolute left-0 top-0 h-1/2 w-1/2 rounded-tl-lg" style={{ background: "rgba(191,135,0,0.05)" }} />
+          <div className="absolute bottom-0 right-0 h-1/2 w-1/2 rounded-br-lg" style={{ background: "rgba(16,185,129,0.05)" }} />
+          {/* dividers */}
+          <div className="absolute left-1/2 top-0 h-full border-l border-dashed border-line" />
+          <div className="absolute left-0 top-1/2 w-full border-t border-dashed border-line" />
+          {/* quadrant labels */}
+          <span className="absolute left-2 top-1.5 text-[11px] font-medium text-muted">Review · low traffic</span>
+          <span className="absolute right-2 top-1.5 text-[11px] font-medium" style={{ color: "#be185d" }}>Fix first ↗</span>
+          <span className="absolute bottom-1.5 left-2 text-[11px] text-muted">Trim?</span>
+          <span className="absolute bottom-1.5 right-2 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">Healthy &amp; relied-on</span>
+          {/* axis hint */}
+          <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 text-[10px] text-muted">reads →</span>
+
+          {/* bubbles */}
           {files.map((f) => {
             const d = dominant(f);
-            const r = 5 + Math.min(f.openRequests, 4) * 1.8;
             return (
-              <circle key={f.path} cx={mapX(f.reads)} cy={mapY(risk(f))} r={r} fill={`${d.color}26`} stroke={d.color} strokeWidth="1.5">
-                <title>{`${f.path} — ${f.reads.toLocaleString()} reads · ${reason(f)}`}</title>
-              </circle>
+              <Link
+                key={f.path}
+                href={`/edit/${f.path}`}
+                title={`${f.path} — ${f.reads.toLocaleString()} reads · ${reason(f)}`}
+                className="group absolute -translate-x-1/2 translate-y-1/2"
+                style={{ left: `${xPct(f.reads)}%`, bottom: `${yPct(risk(f))}%` }}
+              >
+                <span
+                  className="block h-3.5 w-3.5 rounded-full border-2 transition-transform group-hover:scale-150"
+                  style={{ background: `${d.color}26`, borderColor: d.color }}
+                />
+                <span className="pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded bg-ink/85 px-1.5 py-0.5 text-[10px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  {shortName(f.path)}
+                </span>
+              </Link>
             );
           })}
-        </svg>
-        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted">
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted">
           {[...Object.values(FLAG_INFO), HEALTHY].map((i) => (
             <span key={i!.label} className="flex items-center gap-1">
               <span className="h-2 w-2 rounded-full" style={{ background: i!.color }} />
@@ -96,13 +118,12 @@ export function HealthMap({ files, missing }: { files: FileInsight[]; missing: M
             {attention.length === 0 && <li className="text-xs text-muted">Everything looks healthy.</li>}
             {attention.map((f) => {
               const d = dominant(f);
-              const name = f.path.split("/").slice(1).join("/") || f.path;
               return (
                 <li key={f.path}>
                   <Link href={`/edit/${f.path}`} className="block rounded-lg px-1 py-1 transition hover:bg-hover">
                     <div className="flex items-center gap-1.5 text-sm font-medium">
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: d.color }} />
-                      <span className="truncate">{name}</span>
+                      <span className="truncate">{shortName(f.path)}</span>
                       <span className="ml-auto shrink-0 text-xs text-muted">{f.reads.toLocaleString()} reads</span>
                     </div>
                     <div className="pl-3.5 text-xs text-muted">{reason(f)}</div>
