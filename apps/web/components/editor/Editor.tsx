@@ -180,7 +180,8 @@ export function Editor({
   const blockAdd = (blockIdx: number) => { setComposing({ blockIdx, quote: "", mode: "add" }); setDraftText(""); setSel(null); };
 
   return (
-    <div className="flex h-[calc(100dvh-11rem)] min-h-[26rem] flex-col gap-3">
+    // Full-bleed: break out of the centered container so the IDE uses the whole width.
+    <div className="mx-[calc(50%-50vw)] flex h-[calc(100dvh-11rem)] min-h-[26rem] w-[100vw] flex-col gap-3 px-4 sm:px-6">
       {/* Toolbar */}
       <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-line pb-3">
         <h1 className="truncate font-mono text-sm font-medium text-ink">{currentPath}</h1>
@@ -428,7 +429,7 @@ function Block({
     <div
       id={`blk-${idx}`}
       className={`group relative grid border-l-2 py-2 pr-12 leading-[1.7] transition-colors hover:bg-hover/40 ${meta?.rail ?? "border-transparent"} ${
-        showBlame ? "grid-cols-[10.5rem_minmax(0,1fr)] gap-3 pl-2.5" : "grid-cols-1 pl-3"
+        showBlame ? "grid-cols-[7.5rem_minmax(0,1fr)] gap-2 pl-2.5" : "grid-cols-1 pl-3"
       }`}
     >
       {/* Blame gutter — author right next to the colour rail (git-blame style). */}
