@@ -472,24 +472,25 @@ function Block({
       {/* The written content — selectable for partial edits. */}
       <div data-bi={idx} className="min-w-0">{content}</div>
 
-      {/* Open-requests marker (fades on hover so the action bar can show). */}
-      {openReqs > 0 && (
-        <Link
-          href="/inbox"
-          title={`${openReqs} open request${openReqs === 1 ? "" : "s"} on this line`}
-          className="absolute right-2 top-2 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium transition-opacity group-hover:opacity-0"
-          style={{ background: "rgba(9,105,218,0.12)", color: "#0969da" }}
-        >
-          {openReqs} open
-        </Link>
-      )}
-
-      {/* On hover: line actions. */}
-      <div className="absolute right-2 top-1.5 z-10 hidden items-center gap-0.5 rounded-lg border border-line bg-surface p-1 shadow-sm group-hover:flex">
-        <RowBtn title="Add line below" onClick={() => onAdd(idx)}><Icon name="add" /></RowBtn>
-        {!isHeading && <RowBtn title="Edit this line" onClick={() => onEdit(idx, block.text)}><Icon name="edit" /></RowBtn>}
-        {!isHeading && <RowBtn title="Leave a note" onClick={() => onNote(idx, block.text)}><Icon name="note" /></RowBtn>}
-        {!isHeading && <RowBtn title="Delete this line" danger onClick={() => onDelete(idx, block.text)}><Icon name="trash" /></RowBtn>}
+      {/* Right margin: hover action bar + the open-requests chip, side by side so
+          the chip is never covered (the bar expands to its left on hover). */}
+      <div className="absolute right-2 top-1.5 z-10 flex items-center gap-1.5">
+        <div className="hidden items-center gap-0.5 rounded-lg border border-line bg-surface p-1 shadow-sm group-hover:flex">
+          <RowBtn title="Add line below" onClick={() => onAdd(idx)}><Icon name="add" /></RowBtn>
+          {!isHeading && <RowBtn title="Edit this line" onClick={() => onEdit(idx, block.text)}><Icon name="edit" /></RowBtn>}
+          {!isHeading && <RowBtn title="Leave a note" onClick={() => onNote(idx, block.text)}><Icon name="note" /></RowBtn>}
+          {!isHeading && <RowBtn title="Delete this line" danger onClick={() => onDelete(idx, block.text)}><Icon name="trash" /></RowBtn>}
+        </div>
+        {openReqs > 0 && (
+          <Link
+            href="/inbox"
+            title={`${openReqs} open request${openReqs === 1 ? "" : "s"} on this line`}
+            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+            style={{ background: "rgba(9,105,218,0.12)", color: "#0969da" }}
+          >
+            {openReqs} open
+          </Link>
+        )}
       </div>
     </div>
   );

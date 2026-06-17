@@ -61,7 +61,7 @@ export function ReviewQueue({ items }: { items: QueueItem[] }) {
   const [owner, setOwner] = useState("all");
   const [importance, setImportance] = useState<Importance | "all">("all");
   const [range, setRange] = useState<DateRange>("all");
-  const [sort, setSort] = useState<Sort>("newest");
+  const [sort, setSort] = useState<Sort>("importance");
 
   // Honor a ?filter=… deep-link from the dashboard (works in static export).
   useEffect(() => {

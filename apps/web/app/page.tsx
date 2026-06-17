@@ -4,12 +4,10 @@ import type { FileInsight, InsightFlag } from "@context-studio/types";
 import { getHealth, getInsights, getWorkspace, listContextPrs } from "@/lib/api";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { SourceChip } from "@/components/ui/SourceChip";
+import { HealthMap } from "@/components/dashboard/HealthMap";
 import { FirstRunRedirect } from "@/components/onboarding/FirstRunRedirect";
 
 export const dynamic = process.env.STATIC_EXPORT === "1" ? "force-static" : "force-dynamic";
-
-const KIND_COLOR = (k: string) =>
-  ["context", "skills", "memory"].includes(k) ? `var(--type-${k})` : "var(--type-default)";
 
 export default async function Dashboard() {
   let needsSetup = false;
@@ -71,10 +69,10 @@ export default async function Dashboard() {
         <StatTile label="Open change requests" value={openCRs} tone="text-emerald-700 dark:text-emerald-300" href="/inbox?filter=change_request" />
       </div>
 
-      {/* Reading activity — which files the agents read, how much, over the window. */}
+      {/* Health map — what needs the context owner's attention, and where the gaps are. */}
       <section className="space-y-3">
-        <SectionLabel n={2}>Reading activity</SectionLabel>
-        <ReadingHeatmap files={insights.files} periodDays={insights.periodDays} />
+        <SectionLabel n={2}>Health</SectionLabel>
+        <HealthMap files={insights.files} missing={health.missing} />
       </section>
 
       {/* What to act on — decision prompts derived from the file insights. */}
@@ -264,63 +262,3 @@ function StatTile({ label, value, tone, href }: { label: string; value: number |
   );
 }
 
-function heat(a: number) {
-  return `rgba(79,70,229,${a})`;
-}
-
-/** A files × time heatmap of reading activity — bright rows = heavily read. */
-function ReadingHeatmap({ files, periodDays }: { files: FileInsight[]; periodDays: number }) {
-  const cols = Math.max(...files.map((f) => f.trend.length), 1);
-  const max = Math.max(...files.flatMap((f) => f.trend), 1);
-  return (
-    <div className="rounded-xl border border-line bg-surface p-4 shadow-card">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted">
-          Reads per file · last {periodDays}d
-        </div>
-        <div className="flex items-center gap-1 text-[10px] text-muted">
-          less
-          {[0.12, 0.37, 0.62, 0.9].map((a) => (
-            <span key={a} className="h-3 w-3 rounded-sm" style={{ background: heat(a) }} />
-          ))}
-          more
-        </div>
-      </div>
-      <div className="space-y-1">
-        {files.map((f) => {
-          const name = f.path.split("/").slice(1).join("/") || f.path;
-          return (
-            <Link
-              key={f.path}
-              href={`/edit/${f.path}`}
-              className="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-3 rounded-md px-1 py-0.5 transition hover:bg-hover sm:grid-cols-[11rem_1fr_3rem]"
-            >
-              <div className="flex min-w-0 items-center gap-1.5">
-                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: KIND_COLOR(f.kind) }} />
-                <span className="truncate text-xs">{name}</span>
-              </div>
-              <div className="flex gap-1">
-                {Array.from({ length: cols }).map((_, i) => {
-                  const v = f.trend[i] ?? 0;
-                  return (
-                    <div
-                      key={i}
-                      title={`${v.toLocaleString()} reads`}
-                      className="h-4 flex-1 rounded-sm"
-                      style={{ background: v > 0 ? heat(0.12 + 0.88 * (v / max)) : "var(--surface2)" }}
-                    />
-                  );
-                })}
-              </div>
-              <span className="text-right text-xs font-medium tabular-nums text-muted">{f.reads.toLocaleString()}</span>
-            </Link>
-          );
-        })}
-      </div>
-      <div className="mt-2 flex justify-between px-1 text-[10px] text-muted">
-        <span>← earlier</span>
-        <span>now →</span>
-      </div>
-    </div>
-  );
-}
