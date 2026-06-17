@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { EvalReport } from "@context-studio/types";
 import { getEvals } from "@/lib/api";
 import { Hint } from "@/components/ui/Tooltip";
 
 /**
- * Evals panel — runs the context-regression suite against the proposed change
- * and shows pass/fail. Failing evals block approval (the server enforces it).
+ * Evals panel — runs the regression suite for the changed source against the
+ * proposed change and shows pass/fail. Failing required evals block approval
+ * (the server enforces it). Configure per-source evals on the Evals page.
  */
 export function EvalsPanel({ prId }: { prId: string }) {
   const [report, setReport] = useState<EvalReport | null>(null);
@@ -54,10 +56,10 @@ export function EvalsPanel({ prId }: { prId: string }) {
     >
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold">
-          <span aria-hidden>{report.passed ? "✓" : "⚠️"}</span> Context evals
+          <span aria-hidden>{report.passed ? "✓" : "⚠️"}</span> Evals
           <Hint side="top">
-            Automated checks that this change doesn’t drop facts your agents rely on. If any
-            check fails, the change can’t be approved until it’s fixed.
+            The changed source’s checks — that this change doesn’t drop facts your agents rely on.
+            Required checks must pass before approval. Configure them per source on the Evals page.
           </Hint>
         </h2>
         <span className="text-xs font-medium">
@@ -88,6 +90,10 @@ export function EvalsPanel({ prId }: { prId: string }) {
           </li>
         ))}
       </ul>
+
+      <Link href="/evals" className="mt-3 inline-block text-xs font-medium text-brand hover:underline">
+        Configure evals per source →
+      </Link>
     </section>
   );
 }

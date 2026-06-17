@@ -12,10 +12,12 @@ import type {
   DistributionStatus,
   DocumentView,
   EvalReport,
+  EvalsConfig,
   FreshnessOverview,
   HealthOverview,
   InsightsOverview,
   ReviewTicket,
+  UpdateEvalBody,
   WorkspaceInfo,
 } from "@context-studio/types";
 import { DEMO, demo } from "./demo";
@@ -51,6 +53,33 @@ export async function getEvals(id: string): Promise<EvalReport> {
   const res = await fetch(`${apiBase()}/api/context/pr/${id}/evals`, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to run evals: ${res.status}`);
   return (await res.json()) as EvalReport;
+}
+
+/** Configured eval definitions per source (the merge gate). */
+export async function getEvalDefinitions(): Promise<EvalsConfig> {
+  if (DEMO) return demo.getEvalDefinitions();
+  const res = await fetch(`${apiBase()}/api/context/evals`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to load evals config: ${res.status}`);
+  return (await res.json()) as EvalsConfig;
+}
+
+/** Toggle/edit an eval definition (e.g. mark it required-to-merge). */
+export async function updateEvalDefinition(
+  id: string,
+  body: UpdateEvalBody,
+  authHeader: Record<string, string> = {},
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (DEMO) return demo.updateEvalDefinition();
+  const res = await fetch(`${apiBase()}/api/context/evals/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeader },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    return { ok: false, error: typeof j.error === "string" ? j.error : "Failed." };
+  }
+  return { ok: true };
 }
 
 /** Agent health overview for the main dashboard. */

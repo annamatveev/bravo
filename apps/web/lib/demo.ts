@@ -15,7 +15,9 @@ import type {
   CreateSuggestionBody,
   DistributionStatus,
   DocumentView,
+  EvalDefinition,
   EvalReport,
+  EvalsConfig,
   FileInsight,
   FreshnessState,
   HealthOverview,
@@ -448,6 +450,17 @@ const EVALS: EvalReport = {
   ],
 };
 
+// Per-source eval definitions — the merge gate for each source, not just context.
+const EVAL_DEFS: EvalDefinition[] = [
+  { id: "ctx-window", source: "context", name: "Standard refund window stated", question: "What is the standard refund window?", expectContains: ["30 days"], required: true, lastStatus: "pass" },
+  { id: "ctx-escalation", source: "context", name: "Escalation path present", question: "Where do disputed refunds go?", expectContains: ["escalated", "support lead"], required: true, lastStatus: "pass" },
+  { id: "ctx-no-stale-digital", source: "context", name: "No uncaveated 14-day digital window", expectNotContains: ["digital goods are refundable within 14 days of purchase."], required: false, lastStatus: "pass" },
+  { id: "skills-eligibility", source: "skills", name: "Refund steps check eligibility", question: "Do the refund steps verify eligibility first?", expectContains: ["eligibility"], required: true, lastStatus: "pass" },
+  { id: "skills-no-card", source: "skills", name: "Never reads full card numbers", expectNotContains: ["read a full card number"], required: true, lastStatus: "pass" },
+  { id: "mem-giftcards", source: "memory", name: "Gift cards flagged non-refundable", question: "Are gift cards refundable?", expectContains: ["gift-card", "non-refundable"], required: true, lastStatus: "pass" },
+  { id: "mem-intl", source: "memory", name: "International shipping answer present", expectContains: ["internationally"], required: false, lastStatus: "pass" },
+];
+
 const HEALTH: HealthOverview = {
   periodDays: 30,
   totalReads: 1284,
@@ -631,6 +644,8 @@ export const demo = {
   autosaveDoc: async () => ({ draftPrId: "pr-demo-draft", savedAt: now }),
   proposeChange: async () => ({ prId: "pr-demo-draft" }),
   getEvals: async (): Promise<EvalReport> => EVALS,
+  getEvalDefinitions: async (): Promise<EvalsConfig> => ({ definitions: EVAL_DEFS }),
+  updateEvalDefinition: async (): Promise<{ ok: true }> => ({ ok: true }),
   submitApproval: async () => ({ ok: true as const, data: { pr: { ...PR_001, status: "merged" as const }, merged: true } }),
   getAuthConfig: async (): Promise<AuthConfig> => ({ googleEnabled: false, pickUserEnabled: true }),
   getUsers: async (): Promise<SessionUser[]> => [OWNER, REVIEWER],

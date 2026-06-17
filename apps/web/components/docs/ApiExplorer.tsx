@@ -8,6 +8,7 @@ import {
   getContextPr,
   getDistribution,
   getDocumentView,
+  getEvalDefinitions,
   getEvals,
   getFreshnessOverview,
   getHealth,
@@ -68,6 +69,7 @@ const ENDPOINTS: Endpoint[] = [
     runnable: false,
   },
 
+  { id: "evalsConfig", method: "GET", path: "/api/context/evals", summary: "Per-source eval definitions (the merge gate).", auth: "none", area: "Governance", runnable: true },
   { id: "freshness", method: "GET", path: "/api/context/governance/freshness", summary: "Block freshness overview.", auth: "none", area: "Governance", runnable: true },
   { id: "tickets", method: "GET", path: "/api/context/governance/tickets", summary: "Open review tickets + triage suggestions.", auth: "none", area: "Governance", runnable: true },
   {
@@ -105,6 +107,7 @@ async function invoke(ep: Endpoint, inputs: Record<string, string>): Promise<unk
     case "listPrs": return listContextPrs();
     case "getPr": return getContextPr(inputs.id || "pr-001");
     case "evals": return getEvals(inputs.id || "pr-001");
+    case "evalsConfig": return getEvalDefinitions();
     case "freshness": return getFreshnessOverview();
     case "tickets": return listTickets();
     case "distribution": return getDistribution();

@@ -523,6 +523,39 @@ export interface EvalReport {
   results: EvalResult[];
 }
 
+/**
+ * A configured eval, scoped to a source (context / skills / memory / custom).
+ * `required` ones must pass before a change to that source can merge — this is
+ * how evals stop being context-only and become per-source merge gates.
+ */
+export interface EvalDefinition {
+  id: string;
+  source: SourceKind;
+  /** Short human-readable name of the check. */
+  name: string;
+  /** Natural-language question the check stands for. */
+  question?: string;
+  expectContains?: string[];
+  expectNotContains?: string[];
+  /** Must pass before a change to this source can merge. */
+  required: boolean;
+  /** Status from the most recent run, if known. */
+  lastStatus?: "pass" | "fail" | "unknown";
+}
+
+export interface EvalsConfig {
+  definitions: EvalDefinition[];
+}
+
+/** Body for PATCH /api/context/evals/:id — toggle/edit a definition. */
+export interface UpdateEvalBody {
+  required?: boolean;
+  name?: string;
+  question?: string;
+  expectContains?: string[];
+  expectNotContains?: string[];
+}
+
 // ---------------------------------------------------------------------------
 // Distribution (Module 6 — publishing signed per-agent slices)
 // ---------------------------------------------------------------------------
