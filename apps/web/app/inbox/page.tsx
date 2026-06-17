@@ -19,6 +19,7 @@ export default async function QueuePage() {
   }
 
   const items: QueueItem[] = [];
+  const sn = (p: string) => p.split("/").slice(1).join("/") || p;
 
   for (const pr of prs) {
     if (["merged", "rejected"].includes(pr.status)) continue;
@@ -31,26 +32,42 @@ export default async function QueuePage() {
       owner: pr.author.name,
       importance: pr.blastMaxSeverity,
       date: pr.updatedAt,
+      body: `${pr.origin === "agent" ? "Proposed by an agent" : "Proposed change"} to ${pr.documentPath}${pr.affectedAgents ? ` · ${pr.affectedAgents} agent${pr.affectedAgents === 1 ? "" : "s"} affected` : ""}.`,
+      links: [{ label: "Review the change", href: `/pr/${pr.id}` }],
     });
   }
 
+  const TITLE: Record<string, (p: string) => string> = {
+    conflict: (p) => `Conflict involving ${p}`,
+    phrasing: (p) => `Confusing phrasing in ${p}`,
+    mismatch: (p) => `Mismatch in ${p}`,
+    redundancy: (p) => `Redundant text in ${p}`,
+    freshness: (p) => `Stale: ${p}`,
+    other: (p) => `Review ${p}`,
+  };
   for (const t of tickets) {
     const type = t.type ?? "freshness";
-    const kind =
-      type === "conflict" ? "conflict" : type === "freshness" ? "ticket" : "suggestion";
-    const related = t.relatedPaths?.length ? ` · vs ${t.relatedPaths.join(", ")}` : "";
+    const kind = type === "conflict" ? "conflict" : type === "freshness" ? "ticket" : "suggestion";
     const by = t.source === "agent" ? ` · ${t.raisedBy ?? "triage agent"}` : "";
     const owner =
       t.source === "agent" ? t.raisedBy ?? "Triage Agent" : t.source === "human" ? t.assignee?.name ?? "—" : "System";
+    const titleFor = TITLE[type] ?? TITLE.other;
+    const links = [
+      { label: `Open ${sn(t.documentPath)}`, href: `/edit/${t.documentPath}` },
+      ...(t.relatedPaths ?? []).map((rp) => ({ label: `Open ${sn(rp)}`, href: `/edit/${rp}` })),
+    ];
     items.push({
       kind,
-      title: t.reason,
-      meta: `${t.documentPath}${related}${by}`,
-      href: kind === "ticket" ? "/governance" : `/edit/${t.documentPath}`,
+      title: titleFor!(sn(t.documentPath)),
+      meta: `${t.documentPath}${t.relatedPaths?.length ? ` ↔ ${t.relatedPaths.map(sn).join(", ")}` : ""}${by}`,
+      href: `/edit/${t.documentPath}`,
       action: kind === "ticket" ? "Resolve" : "Review",
       owner,
       importance: kind === "conflict" ? "high" : "medium",
       date: t.createdAt,
+      body: t.reason,
+      quote: t.blockText || undefined,
+      links,
     });
   }
 
@@ -64,19 +81,25 @@ export default async function QueuePage() {
       owner: "Agents",
       importance: m.misses >= 10 ? "high" : m.misses >= 5 ? "medium" : "low",
       date: m.lastAskedAt,
+      body: `Agents searched for this and found nothing${m.intent ? `, while trying to: ${m.intent}` : ""}. Missed ${m.misses}× in the window — writing the answer is what closes the gap.`,
+      quote: m.query,
+      links: [{ label: "Author the answer", href: "/edit/policies/refunds.md" }],
     });
   }
 
   for (const c of health.cold) {
     if (c.reads > 0) continue;
+    const file = c.path.split(" › ")[0] ?? c.path;
     items.push({
       kind: "unread",
       title: c.path,
       meta: `never read${c.freshness && c.freshness !== "fresh" ? ` · ${c.freshness}` : ""}`,
-      href: "/edit/policies/refunds.md",
+      href: `/edit/${file}`,
       action: "Review",
       importance: "low",
       date: c.lastReadAt,
+      body: `Agents never read this in the window${c.freshness && c.freshness !== "fresh" ? ` and it's ${c.freshness}` : ""}. Check it's reachable and authorized, or trim it.`,
+      links: [{ label: `Open ${sn(file)}`, href: `/edit/${file}` }],
     });
   }
 

@@ -19,6 +19,12 @@ export interface QueueItem {
   importance?: Importance;
   /** ISO timestamp — for date sort + range filter. */
   date?: string;
+  /** Expanded detail — what the issue actually is. */
+  body?: string;
+  /** The specific line/quote the issue is about, if any. */
+  quote?: string;
+  /** Where to go to act — the file(s), the other file in a conflict, etc. */
+  links?: Array<{ label: string; href: string }>;
 }
 
 const KIND: Record<QueueKind, { label: string; dot: string }> = {
@@ -251,25 +257,47 @@ function KindBadge({ kind }: { kind: QueueKind }) {
 }
 
 function Row({ item }: { item: QueueItem }) {
+  const [open, setOpen] = useState(false);
+  const links = item.links?.length ? item.links : [{ label: item.action, href: item.href }];
   return (
-    <Link href={item.href} className="flex items-center gap-4 px-5 py-3 transition hover:bg-hover">
-      <div className="min-w-0 flex-1">
-        <KindBadge kind={item.kind} />
-        <div className="mt-0.5 truncate text-sm font-medium">{item.title}</div>
-        <div className="truncate text-xs text-muted">{item.meta}</div>
-      </div>
-      <div className="hidden shrink-0 flex-col items-end gap-1 text-right sm:flex">
-        {item.importance && <ImportanceBadge importance={item.importance} />}
-        <span className="text-[11px] text-muted">
-          {item.owner ? `${item.owner}` : ""}
-          {item.owner && item.date ? " · " : ""}
-          {item.date ? relativeTime(item.date) : ""}
-        </span>
-      </div>
-      <span className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-brand">
-        {item.action} →
-      </span>
-    </Link>
+    <div>
+      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-4 px-5 py-3 text-left transition hover:bg-hover">
+        <div className="min-w-0 flex-1">
+          <KindBadge kind={item.kind} />
+          <div className="mt-0.5 truncate text-sm font-medium">{item.title}</div>
+          <div className="truncate text-xs text-muted">{item.meta}</div>
+        </div>
+        <div className="hidden shrink-0 flex-col items-end gap-1 text-right sm:flex">
+          {item.importance && <ImportanceBadge importance={item.importance} />}
+          <span className="text-[11px] text-muted">
+            {item.owner ? `${item.owner}` : ""}
+            {item.owner && item.date ? " · " : ""}
+            {item.date ? relativeTime(item.date) : ""}
+          </span>
+        </div>
+        <span className="shrink-0 text-muted">{open ? "▾" : "▸"}</span>
+      </button>
+
+      {open && (
+        <div className="space-y-3 border-t border-line bg-surface2/40 px-5 py-3">
+          {item.body && <p className="text-sm text-ink/90">{item.body}</p>}
+          {item.quote && (
+            <div className="rounded-lg border border-line bg-surface px-3 py-2 text-xs italic text-muted">“{item.quote}”</div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {links.map((l) => (
+              <Link
+                key={l.href + l.label}
+                href={l.href}
+                className="rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-brand transition hover:bg-hover"
+              >
+                {l.label} →
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
