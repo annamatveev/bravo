@@ -261,7 +261,7 @@ function Row({ item }: { item: QueueItem }) {
   const links = item.links?.length ? item.links : [{ label: item.action, href: item.href }];
   return (
     <div>
-      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-4 px-5 py-3 text-left transition hover:bg-hover">
+      <button onClick={() => setOpen((o) => !o)} className="group flex w-full items-center gap-4 px-5 py-3 text-left transition hover:bg-hover">
         <div className="min-w-0 flex-1">
           <KindBadge kind={item.kind} />
           <div className="mt-0.5 truncate text-sm font-medium">{item.title}</div>
@@ -275,14 +275,21 @@ function Row({ item }: { item: QueueItem }) {
             {item.date ? relativeTime(item.date) : ""}
           </span>
         </div>
-        <span className="shrink-0 text-muted">{open ? "▾" : "▸"}</span>
+        <span
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-line text-muted transition group-hover:bg-hover group-hover:text-ink ${open ? "rotate-180 bg-hover text-ink" : ""}`}
+          aria-hidden
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </span>
       </button>
 
       {open && (
         <div className="space-y-3 border-t border-line bg-surface2/40 px-5 py-3">
           {item.body && <p className="text-sm text-ink/90">{item.body}</p>}
           {item.quote && (
-            <div className="rounded-lg border border-line bg-surface px-3 py-2 text-xs italic text-muted">“{item.quote}”</div>
+            <div className="inline-block max-w-full rounded-lg border border-line bg-surface px-3 py-2 text-xs italic text-muted">“{item.quote}”</div>
           )}
           <div className="flex flex-wrap gap-2">
             {links.map((l) => (
