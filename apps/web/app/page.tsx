@@ -41,12 +41,6 @@ export default async function Dashboard() {
   const openCRs = prs.filter((p) => !["merged", "rejected"].includes(p.status)).length;
   const neverRead = health.cold.filter((c) => c.reads === 0).length;
 
-  const byKind = new Map<string, number>();
-  for (const f of insights.files) byKind.set(f.kind, (byKind.get(f.kind) ?? 0) + f.reads);
-  const kindBars = [...byKind.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([kind, reads]) => ({ label: kind, value: reads, color: KIND_COLOR(kind) }));
-
   // The "what to act on" prompts — each derived from the file insights.
   const firstUnverified = insights.files.find((f) => f.flags.includes("unverified"))?.path;
   const actCards = [
@@ -77,18 +71,10 @@ export default async function Dashboard() {
         <StatTile label="Open change requests" value={openCRs} tone="text-emerald-700 dark:text-emerald-300" href="/inbox?filter=change_request" />
       </div>
 
-      {/* charts */}
+      {/* Reading activity — which files the agents read, how much, over the window. */}
       <section className="space-y-3">
-        <SectionLabel n={2}>At a glance</SectionLabel>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Card title={`Reads · last ${health.trend.length}d`}>
-            <Sparkline values={health.trend} />
-            <div className="mt-2 text-xs text-muted">{health.totalReads.toLocaleString()} total · trending up</div>
-          </Card>
-          <Card title="Reads by type">
-            <Bars items={kindBars} />
-          </Card>
-        </div>
+        <SectionLabel n={2}>Reading activity</SectionLabel>
+        <ReadingHeatmap files={insights.files} periodDays={insights.periodDays} />
       </section>
 
       {/* What to act on — decision prompts derived from the file insights. */}
@@ -278,45 +264,63 @@ function StatTile({ label, value, tone, href }: { label: string; value: number |
   );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function heat(a: number) {
+  return `rgba(79,70,229,${a})`;
+}
+
+/** A files × time heatmap of reading activity — bright rows = heavily read. */
+function ReadingHeatmap({ files, periodDays }: { files: FileInsight[]; periodDays: number }) {
+  const cols = Math.max(...files.map((f) => f.trend.length), 1);
+  const max = Math.max(...files.flatMap((f) => f.trend), 1);
   return (
     <div className="rounded-xl border border-line bg-surface p-4 shadow-card">
-      {title && <div className="mb-3 font-mono text-[11px] uppercase tracking-[0.15em] text-muted">{title}</div>}
-      {children}
-    </div>
-  );
-}
-
-function Sparkline({ values }: { values: number[] }) {
-  const w = 240;
-  const h = 48;
-  const max = Math.max(...values);
-  const min = Math.min(...values);
-  const pts = values
-    .map((v, i) => `${(i / (values.length - 1)) * w},${h - ((v - min) / (max - min || 1)) * (h - 6) - 3}`)
-    .join(" ");
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" preserveAspectRatio="none" aria-hidden>
-      <polyline points={pts} fill="none" stroke="var(--brand)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function Bars({ items }: { items: Array<{ label: string; value: number; color: string }> }) {
-  const max = Math.max(...items.map((i) => i.value), 1);
-  return (
-    <div className="space-y-2">
-      {items.map((i) => (
-        <div key={i.label}>
-          <div className="flex items-center justify-between text-xs">
-            <span className="truncate capitalize text-muted">{i.label}</span>
-            <span className="font-medium">{i.value.toLocaleString()}</span>
-          </div>
-          <div className="mt-0.5 h-2 rounded-full bg-surface2">
-            <div className="h-2 rounded-full" style={{ width: `${(i.value / max) * 100}%`, background: i.color }} />
-          </div>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted">
+          Reads per file · last {periodDays}d
         </div>
-      ))}
+        <div className="flex items-center gap-1 text-[10px] text-muted">
+          less
+          {[0.12, 0.37, 0.62, 0.9].map((a) => (
+            <span key={a} className="h-3 w-3 rounded-sm" style={{ background: heat(a) }} />
+          ))}
+          more
+        </div>
+      </div>
+      <div className="space-y-1">
+        {files.map((f) => {
+          const name = f.path.split("/").slice(1).join("/") || f.path;
+          return (
+            <Link
+              key={f.path}
+              href={`/edit/${f.path}`}
+              className="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-3 rounded-md px-1 py-0.5 transition hover:bg-hover sm:grid-cols-[11rem_1fr_3rem]"
+            >
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: KIND_COLOR(f.kind) }} />
+                <span className="truncate text-xs">{name}</span>
+              </div>
+              <div className="flex gap-1">
+                {Array.from({ length: cols }).map((_, i) => {
+                  const v = f.trend[i] ?? 0;
+                  return (
+                    <div
+                      key={i}
+                      title={`${v.toLocaleString()} reads`}
+                      className="h-4 flex-1 rounded-sm"
+                      style={{ background: v > 0 ? heat(0.12 + 0.88 * (v / max)) : "var(--surface2)" }}
+                    />
+                  );
+                })}
+              </div>
+              <span className="text-right text-xs font-medium tabular-nums text-muted">{f.reads.toLocaleString()}</span>
+            </Link>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex justify-between px-1 text-[10px] text-muted">
+        <span>← earlier</span>
+        <span>now →</span>
+      </div>
     </div>
   );
 }

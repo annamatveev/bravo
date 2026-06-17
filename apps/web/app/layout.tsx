@@ -49,10 +49,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <NavLink href="/inbox">
                   <span className="inline-flex items-center">Inbox<InboxBadge /></span>
                 </NavLink>
-                <NavLink href="/">Dashboard</NavLink>
                 <NavLink href="/edit/policies/refunds.md">Library</NavLink>
                 <NavLink href="/distribution">Publish</NavLink>
                 <NavLink href="/setup">Workspace</NavLink>
+                <NavLink href="/docs">Docs</NavLink>
               </nav>
               <div className="ml-auto flex shrink-0 items-center gap-2">
                 <ThemeToggle />

@@ -81,6 +81,7 @@ export function Editor({
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [draftPrId, setDraftPrId] = useState<string | undefined>(doc.draftPrId);
   const [showPropose, setShowPropose] = useState(false);
+  const [showBlame, setShowBlame] = useState(false);
 
   const [annos, setAnnos] = useState<Anno[]>([]);
   const [sel, setSel] = useState<{ blockIdx: number; quote: string; x: number; y: number } | null>(null);
@@ -192,8 +193,8 @@ export function Editor({
             )}
           </h1>
           <p className="text-xs text-muted">
-            The left rail shows who wrote each line. Hover a line to see details and to add, edit, note, or delete —
-            or select text for a precise edit. Autosaves privately until you propose.
+            The left rail shows who wrote each line. Hover a line to add, edit, note, or delete — or select text
+            for a precise edit. Toggle “Authors” to annotate every line, git-blame style. Autosaves until you propose.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -216,16 +217,30 @@ export function Editor({
         </div>
 
         <div className="space-y-3">
-          <div className="inline-flex rounded-lg border border-line bg-surface p-0.5 text-sm">
-            {(["edit", "source"] as Mode[]).map((m) => (
+          <div className="flex items-center justify-between gap-2">
+            <div className="inline-flex rounded-lg border border-line bg-surface p-0.5 text-sm">
+              {(["edit", "source"] as Mode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  className={`rounded-md px-3 py-1 capitalize ${mode === m ? "bg-brand text-white" : "text-muted hover:text-ink"}`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+            {mode === "edit" && (
               <button
-                key={m}
-                onClick={() => setMode(m)}
-                className={`rounded-md px-3 py-1 capitalize ${mode === m ? "bg-brand text-white" : "text-muted hover:text-ink"}`}
+                onClick={() => setShowBlame((b) => !b)}
+                aria-pressed={showBlame}
+                title="Annotate every line with its author (git-blame style)"
+                className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
+                  showBlame ? "border-brand bg-brand/10 text-ink" : "border-line text-muted hover:bg-hover hover:text-ink"
+                }`}
               >
-                {m}
+                Authors
               </button>
-            ))}
+            )}
           </div>
 
           {mode === "source" ? (
@@ -248,6 +263,7 @@ export function Editor({
                       annos={annos.filter((a) => a.blockIdx === i)}
                       attribution={attribByKey.get(blockKey(b.text))}
                       insight={insightByKey.get(blockKey(b.text))}
+                      showBlame={showBlame}
                       onEdit={blockEdit}
                       onNote={blockNote}
                       onDelete={blockDelete}
@@ -388,6 +404,7 @@ function Block({
   annos,
   attribution,
   insight,
+  showBlame,
   onEdit,
   onNote,
   onDelete,
@@ -398,6 +415,7 @@ function Block({
   annos: Anno[];
   attribution?: Attribution;
   insight?: BlockInsight;
+  showBlame: boolean;
   onEdit: (idx: number, text: string) => void;
   onNote: (idx: number, text: string) => void;
   onDelete: (idx: number, text: string) => void;
@@ -418,24 +436,40 @@ function Block({
     <span className="text-ink/90">{inner}</span>
   );
 
-  // Shown only on hover — the left rail colour already encodes confidence.
+  // The blame annotation — shown for every line only when "Authors" is on.
   const who = meta
     ? conf === "agent_unverified"
       ? `${attribution!.author.name} · not yet reviewed`
-      : `Verified by ${attribution!.verifiedBy ?? attribution!.author.name} · ${relativeTime(attribution!.mergedAt)}`
+      : `${attribution!.verifiedBy ?? attribution!.author.name} · ${relativeTime(attribution!.mergedAt)}`
     : null;
   const openReqs = insight?.openRequests ?? 0;
 
   return (
     <div
       id={`blk-${idx}`}
-      className={`group relative border-l-2 py-2 pl-3 pr-12 leading-[1.7] transition-colors hover:bg-hover/40 ${meta?.rail ?? "border-transparent"}`}
+      className={`group relative grid border-l-2 py-2 pl-3 leading-[1.7] transition-colors hover:bg-hover/40 ${meta?.rail ?? "border-transparent"} ${
+        showBlame ? "grid-cols-1 gap-1 pr-2 md:grid-cols-[1fr_13rem] md:gap-4" : "grid-cols-1 pr-12"
+      }`}
     >
       {/* The written content — selectable for partial edits. */}
       <div data-bi={idx} className="min-w-0">{content}</div>
 
-      {/* Always-on: a quiet open-requests marker (hidden while hovering). */}
-      {openReqs > 0 && (
+      {/* Blame gutter — author + open marker per line; fades on hover for actions. */}
+      {showBlame && (
+        <aside className="flex items-center gap-2 text-[11px] text-muted transition-opacity group-hover:opacity-0 md:justify-end md:text-right">
+          {openReqs > 0 && (
+            <span className="rounded-full px-1.5 py-0.5 font-medium" style={{ background: "rgba(9,105,218,0.12)", color: "#0969da" }}>
+              {openReqs} open
+            </span>
+          )}
+          <span className={`truncate ${conf === "agent_unverified" ? "text-amber-600 dark:text-amber-400" : ""}`}>
+            {who ?? "unattributed"}
+          </span>
+        </aside>
+      )}
+
+      {/* Open marker (only when not in blame mode — blame shows it inline). */}
+      {!showBlame && openReqs > 0 && (
         <Link
           href="/inbox"
           title={`${openReqs} open request${openReqs === 1 ? "" : "s"} on this line`}
@@ -446,19 +480,12 @@ function Block({
         </Link>
       )}
 
-      {/* On hover: who/when + line actions, in one compact panel. */}
-      <div className="absolute right-2 top-1.5 z-10 hidden flex-col items-end gap-1 group-hover:flex">
-        {who && (
-          <span className="whitespace-nowrap rounded-md border border-line bg-surface px-2 py-0.5 text-[11px] text-muted shadow-sm">
-            {who}
-          </span>
-        )}
-        <div className="flex items-center gap-0.5 rounded-lg border border-line bg-surface p-1 shadow-sm">
-          <RowBtn title="Add line below" onClick={() => onAdd(idx)}><Icon name="add" /></RowBtn>
-          {!isHeading && <RowBtn title="Edit this line" onClick={() => onEdit(idx, block.text)}><Icon name="edit" /></RowBtn>}
-          {!isHeading && <RowBtn title="Leave a note" onClick={() => onNote(idx, block.text)}><Icon name="note" /></RowBtn>}
-          {!isHeading && <RowBtn title="Delete this line" danger onClick={() => onDelete(idx, block.text)}><Icon name="trash" /></RowBtn>}
-        </div>
+      {/* On hover: line actions. */}
+      <div className="absolute right-2 top-1.5 z-10 hidden items-center gap-0.5 rounded-lg border border-line bg-surface p-1 shadow-sm group-hover:flex">
+        <RowBtn title="Add line below" onClick={() => onAdd(idx)}><Icon name="add" /></RowBtn>
+        {!isHeading && <RowBtn title="Edit this line" onClick={() => onEdit(idx, block.text)}><Icon name="edit" /></RowBtn>}
+        {!isHeading && <RowBtn title="Leave a note" onClick={() => onNote(idx, block.text)}><Icon name="note" /></RowBtn>}
+        {!isHeading && <RowBtn title="Delete this line" danger onClick={() => onDelete(idx, block.text)}><Icon name="trash" /></RowBtn>}
       </div>
     </div>
   );
