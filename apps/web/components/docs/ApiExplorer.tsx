@@ -44,6 +44,8 @@ interface Endpoint {
   runnable: boolean;
   /** Additive write — gate behind an explicit confirm. */
   write?: boolean;
+  /** Response shape note for endpoints we don't run here. */
+  returns?: string;
 }
 
 const ENDPOINTS: Endpoint[] = [
@@ -58,6 +60,7 @@ const ENDPOINTS: Endpoint[] = [
     summary: "Approve / request changes / reject. Final approval merges + publishes.",
     auth: "reviewer", area: "Change requests", params: [{ name: "id", def: "pr-001", in: "path" }],
     body: JSON.stringify({ action: "approve", blastRadiusAcknowledged: true }, null, 2), runnable: false,
+    returns: "ApprovalResponse — { pr: ContextPR, merged: boolean }.",
   },
   {
     id: "agentSubmit", method: "POST", path: "/api/context/pr/agent-submit",
@@ -68,6 +71,7 @@ const ENDPOINTS: Endpoint[] = [
       null, 2,
     ),
     runnable: false,
+    returns: "AgentSubmitResponse — { prId, status }.",
   },
 
   { id: "evalsConfig", method: "GET", path: "/api/context/evals", summary: "Per-source eval definitions (the merge gate).", auth: "none", area: "Governance", runnable: true },
@@ -89,7 +93,7 @@ const ENDPOINTS: Endpoint[] = [
 
   { id: "workspace", method: "GET", path: "/api/context/workspace", summary: "Active workspace + its bound sources.", auth: "none", area: "Workspace", runnable: true },
   { id: "distribution", method: "GET", path: "/api/context/distribution", summary: "Published per-agent bundle status.", auth: "none", area: "Distribution", runnable: true },
-  { id: "publish", method: "POST", path: "/api/context/distribution/publish", summary: "Re-publish signed per-agent bundles.", auth: "owner", area: "Distribution", runnable: false },
+  { id: "publish", method: "POST", path: "/api/context/distribution/publish", summary: "Re-publish signed per-agent bundles.", auth: "owner", area: "Distribution", runnable: false, returns: "DistributionStatus — version, generatedAt, per-agent slices." },
 ];
 
 const AREAS = [...new Set(ENDPOINTS.map((e) => e.area))];
@@ -212,6 +216,12 @@ function EndpointCard({ ep }: { ep: Endpoint }) {
     }
   }
 
+  // Show the response shape automatically when a read-only endpoint is opened.
+  useEffect(() => {
+    if (open && ep.method === "GET" && ep.runnable && resp === null) void send();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   const methodColor = ep.method === "GET" ? "#1a7f37" : "#bc4c00";
   const chip = AUTH_CHIP[ep.auth];
 
@@ -276,10 +286,13 @@ function EndpointCard({ ep }: { ep: Endpoint }) {
               </div>
             </div>
           ) : (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-200">
-              {ep.auth === "agent-key"
-                ? "Authenticate with an agent API key — run from a terminal, not the browser."
-                : `Mutating endpoint — run from a terminal with your ${ep.auth} token.`}
+            <div className="space-y-1.5">
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-200">
+                {ep.auth === "agent-key"
+                  ? "Authenticate with an agent API key — run from a terminal, not the browser."
+                  : `Mutating endpoint — run from a terminal with your ${ep.auth} token.`}
+              </div>
+              {ep.returns && <div className="text-xs text-muted"><span className="font-medium text-ink">Returns:</span> {ep.returns}</div>}
             </div>
           )}
 
