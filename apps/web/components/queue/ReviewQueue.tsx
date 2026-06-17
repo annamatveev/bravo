@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { SectionLabel } from "@/components/ui/SectionLabel";
+import { relativeTime } from "@/components/cpr/ui";
 
 export type QueueKind = "change_request" | "conflict" | "suggestion" | "ticket" | "missing" | "unread";
+export type Importance = "low" | "medium" | "high";
 
 export interface QueueItem {
   kind: QueueKind;
@@ -12,7 +14,11 @@ export interface QueueItem {
   meta: string;
   href: string;
   action: string;
-  severity?: "low" | "medium" | "high";
+  /** Who opened / raised it — for the owner filter. */
+  owner?: string;
+  importance?: Importance;
+  /** ISO timestamp — for date sort + range filter. */
+  date?: string;
 }
 
 const KIND: Record<QueueKind, { label: string; dot: string }> = {
@@ -36,30 +42,82 @@ const FILTERS: Array<{ key: QueueKind | "all"; label: string }> = [
 
 const FILTER_KEYS = ["change_request", "conflict", "suggestion", "ticket", "missing", "unread"];
 
+const IMP_RANK: Record<Importance, number> = { high: 3, medium: 2, low: 1 };
+const IMP_COLOR: Record<Importance, string> = { high: "#cf222e", medium: "#bf8700", low: "#57606a" };
+
+type Sort = "newest" | "oldest" | "importance" | "title";
+type DateRange = "all" | "24h" | "7d" | "30d";
+const RANGE_MS: Record<Exclude<DateRange, "all">, number> = {
+  "24h": 86_400_000,
+  "7d": 7 * 86_400_000,
+  "30d": 30 * 86_400_000,
+};
+
 export function ReviewQueue({ items }: { items: QueueItem[] }) {
   const [filter, setFilter] = useState<QueueKind | "all">("all");
   const [view, setView] = useState<"list" | "focus">("list");
   const [idx, setIdx] = useState(0);
 
+  // Advanced filters + sort.
+  const [query, setQuery] = useState("");
+  const [owner, setOwner] = useState("all");
+  const [importance, setImportance] = useState<Importance | "all">("all");
+  const [range, setRange] = useState<DateRange>("all");
+  const [sort, setSort] = useState<Sort>("newest");
+
   // Honor a ?filter=… deep-link from the dashboard (works in static export).
   useEffect(() => {
     const f = new URLSearchParams(window.location.search).get("filter");
-    if (f && FILTER_KEYS.includes(f)) {
-      setFilter(f as QueueKind);
-    }
+    if (f && FILTER_KEYS.includes(f)) setFilter(f as QueueKind);
   }, []);
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: items.length };
-    for (const it of items) c[it.kind] = (c[it.kind] ?? 0) + 1;
-    return c;
-  }, [items]);
-
-  const filtered = useMemo(
-    () => (filter === "all" ? items : items.filter((i) => i.kind === filter)),
-    [items, filter],
+  const owners = useMemo(
+    () => [...new Set(items.map((i) => i.owner).filter((o): o is string => !!o))].sort(),
+    [items],
   );
 
+  // Everything except the kind chip — so chip counts reflect active filters.
+  const advFiltered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const now = Date.now();
+    return items.filter((it) => {
+      if (q && !`${it.title} ${it.meta}`.toLowerCase().includes(q)) return false;
+      if (owner !== "all" && it.owner !== owner) return false;
+      if (importance !== "all" && it.importance !== importance) return false;
+      if (range !== "all") {
+        if (!it.date) return false;
+        if (now - new Date(it.date).getTime() > RANGE_MS[range]) return false;
+      }
+      return true;
+    });
+  }, [items, query, owner, importance, range]);
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: advFiltered.length };
+    for (const it of advFiltered) c[it.kind] = (c[it.kind] ?? 0) + 1;
+    return c;
+  }, [advFiltered]);
+
+  const filtered = useMemo(() => {
+    const arr = filter === "all" ? advFiltered : advFiltered.filter((i) => i.kind === filter);
+    const ts = (i: QueueItem) => (i.date ? new Date(i.date).getTime() : 0);
+    const rank = (i: QueueItem) => (i.importance ? IMP_RANK[i.importance] : 0);
+    return [...arr].sort((a, b) => {
+      if (sort === "newest") return ts(b) - ts(a);
+      if (sort === "oldest") return ts(a) - ts(b);
+      if (sort === "title") return a.title.localeCompare(b.title);
+      return rank(b) - rank(a) || ts(b) - ts(a); // importance
+    });
+  }, [advFiltered, filter, sort]);
+
+  const advActive = query !== "" || owner !== "all" || importance !== "all" || range !== "all";
+  const clearAdv = () => {
+    setQuery("");
+    setOwner("all");
+    setImportance("all");
+    setRange("all");
+    setIdx(0);
+  };
   const setF = (f: QueueKind | "all") => {
     setFilter(f);
     setIdx(0);
@@ -72,8 +130,8 @@ export function ReviewQueue({ items }: { items: QueueItem[] }) {
           <SectionLabel n={1}>Inbox</SectionLabel>
           <h1 className="text-3xl font-semibold tracking-tight">Everything that needs you</h1>
           <p className="max-w-prose text-sm text-muted">
-            One place to triage — change requests to approve, stale blocks to review, gaps to fill,
-            and knowledge nobody reads. Filter, then work through them.
+            One place to triage — change requests to approve, conflicts and suggestions to resolve, gaps to fill,
+            and knowledge nobody reads. Search, filter, sort, then work through them.
           </p>
         </div>
         <div className="inline-flex rounded-lg border border-line bg-surface p-0.5 text-sm">
@@ -89,7 +147,51 @@ export function ReviewQueue({ items }: { items: QueueItem[] }) {
         </div>
       </div>
 
-      {/* filter chips */}
+      {/* Advanced filters + sort */}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface p-2 shadow-card">
+        <div className="relative min-w-[12rem] flex-1">
+          <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted">⌕</span>
+          <input
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setIdx(0); }}
+            placeholder="Search title or content…"
+            className="w-full rounded-lg border border-line bg-surface py-1.5 pl-7 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/20"
+          />
+        </div>
+        <Select label="Owner" value={owner} onChange={(v) => { setOwner(v); setIdx(0); }}>
+          <option value="all">Any owner</option>
+          {owners.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </Select>
+        <Select label="Importance" value={importance} onChange={(v) => { setImportance(v as Importance | "all"); setIdx(0); }}>
+          <option value="all">Any importance</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </Select>
+        <Select label="Date" value={range} onChange={(v) => { setRange(v as DateRange); setIdx(0); }}>
+          <option value="all">Any time</option>
+          <option value="24h">Last 24h</option>
+          <option value="7d">Last 7 days</option>
+          <option value="30d">Last 30 days</option>
+        </Select>
+        <div className="ml-auto flex items-center gap-2">
+          <Select label="Sort" value={sort} onChange={(v) => setSort(v as Sort)}>
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="importance">Importance</option>
+            <option value="title">Title (A–Z)</option>
+          </Select>
+          {advActive && (
+            <button onClick={clearAdv} className="rounded-lg border border-line px-2.5 py-1.5 text-xs text-muted hover:text-ink">
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* kind chips */}
       <div className="flex flex-wrap gap-2">
         {FILTERS.map((f) => (
           <button
@@ -109,7 +211,7 @@ export function ReviewQueue({ items }: { items: QueueItem[] }) {
 
       {filtered.length === 0 ? (
         <div className="rounded-xl border border-line bg-surface p-8 text-center text-sm text-muted shadow-card">
-          Nothing here — queue’s clear. 🎉
+          {items.length === 0 ? "Nothing here — queue’s clear. 🎉" : "No items match these filters."}
         </div>
       ) : view === "list" ? (
         <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card">
@@ -129,6 +231,42 @@ export function ReviewQueue({ items }: { items: QueueItem[] }) {
   );
 }
 
+function Select({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="flex items-center gap-1.5 text-xs text-muted">
+      <span className="hidden sm:inline">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand/20"
+      >
+        {children}
+      </select>
+    </label>
+  );
+}
+
+function ImportanceBadge({ importance }: { importance: Importance }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium capitalize"
+      style={{ background: hexA(IMP_COLOR[importance], 0.12), color: IMP_COLOR[importance] }}
+    >
+      {importance}
+    </span>
+  );
+}
+
 function KindBadge({ kind }: { kind: QueueKind }) {
   return (
     <span className="inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-[10px] uppercase tracking-wide text-muted">
@@ -140,11 +278,19 @@ function KindBadge({ kind }: { kind: QueueKind }) {
 
 function Row({ item }: { item: QueueItem }) {
   return (
-    <Link href={item.href} className="flex items-center justify-between gap-4 px-5 py-3 transition hover:bg-hover">
-      <div className="min-w-0">
+    <Link href={item.href} className="flex items-center gap-4 px-5 py-3 transition hover:bg-hover">
+      <div className="min-w-0 flex-1">
         <KindBadge kind={item.kind} />
         <div className="mt-0.5 truncate text-sm font-medium">{item.title}</div>
         <div className="truncate text-xs text-muted">{item.meta}</div>
+      </div>
+      <div className="hidden shrink-0 flex-col items-end gap-1 text-right sm:flex">
+        {item.importance && <ImportanceBadge importance={item.importance} />}
+        <span className="text-[11px] text-muted">
+          {item.owner ? `${item.owner}` : ""}
+          {item.owner && item.date ? " · " : ""}
+          {item.date ? relativeTime(item.date) : ""}
+        </span>
       </div>
       <span className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-brand">
         {item.action} →
@@ -182,9 +328,19 @@ function Focus({
         </div>
       </div>
       <div className="rounded-2xl border border-line bg-surface p-6 shadow-card">
-        <KindBadge kind={it.kind} />
+        <div className="flex items-center justify-between">
+          <KindBadge kind={it.kind} />
+          {it.importance && <ImportanceBadge importance={it.importance} />}
+        </div>
         <h2 className="mt-2 text-xl font-semibold">{it.title}</h2>
         <p className="mt-1 text-sm text-muted">{it.meta}</p>
+        {(it.owner || it.date) && (
+          <p className="mt-1 text-xs text-muted">
+            {it.owner ? `Opened by ${it.owner}` : ""}
+            {it.owner && it.date ? " · " : ""}
+            {it.date ? relativeTime(it.date) : ""}
+          </p>
+        )}
         <Link
           href={it.href}
           className="mt-4 inline-block rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
@@ -194,4 +350,10 @@ function Focus({
       </div>
     </div>
   );
+}
+
+function hexA(hex: string, a: number) {
+  if (hex.startsWith("var")) return hex;
+  const n = parseInt(hex.replace("#", ""), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }

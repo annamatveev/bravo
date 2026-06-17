@@ -28,7 +28,9 @@ export default async function QueuePage() {
       meta: `${pr.id} · ${pr.documentPath}${pr.origin === "agent" ? " · from agent" : ""}`,
       href: `/pr/${pr.id}`,
       action: "Review",
-      severity: pr.blastMaxSeverity,
+      owner: pr.author.name,
+      importance: pr.blastMaxSeverity,
+      date: pr.updatedAt,
     });
   }
 
@@ -38,12 +40,17 @@ export default async function QueuePage() {
       type === "conflict" ? "conflict" : type === "freshness" ? "ticket" : "suggestion";
     const related = t.relatedPaths?.length ? ` · vs ${t.relatedPaths.join(", ")}` : "";
     const by = t.source === "agent" ? ` · ${t.raisedBy ?? "triage agent"}` : "";
+    const owner =
+      t.source === "agent" ? t.raisedBy ?? "Triage Agent" : t.source === "human" ? t.assignee?.name ?? "—" : "System";
     items.push({
       kind,
       title: t.reason,
       meta: `${t.documentPath}${related}${by}`,
       href: kind === "ticket" ? "/governance" : `/edit/${t.documentPath}`,
       action: kind === "ticket" ? "Resolve" : "Review",
+      owner,
+      importance: kind === "conflict" ? "high" : "medium",
+      date: t.createdAt,
     });
   }
 
@@ -54,6 +61,9 @@ export default async function QueuePage() {
       meta: `${m.misses}× missed${m.intent ? ` · intent: ${m.intent}` : ""}`,
       href: "/edit/policies/refunds.md",
       action: "Author",
+      owner: "Agents",
+      importance: m.misses >= 10 ? "high" : m.misses >= 5 ? "medium" : "low",
+      date: m.lastAskedAt,
     });
   }
 
@@ -65,6 +75,8 @@ export default async function QueuePage() {
       meta: `never read${c.freshness && c.freshness !== "fresh" ? ` · ${c.freshness}` : ""}`,
       href: "/edit/policies/refunds.md",
       action: "Review",
+      importance: "low",
+      date: c.lastReadAt,
     });
   }
 
