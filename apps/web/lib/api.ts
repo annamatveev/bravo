@@ -13,7 +13,9 @@ import type {
   DocumentView,
   EvalReport,
   EvalsConfig,
+  FileHistory,
   FreshnessOverview,
+  HistoryEvent,
   HealthOverview,
   InsightsOverview,
   ReviewTicket,
@@ -53,6 +55,25 @@ export async function getEvals(id: string): Promise<EvalReport> {
   const res = await fetch(`${apiBase()}/api/context/pr/${id}/evals`, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to run evals: ${res.status}`);
   return (await res.json()) as EvalReport;
+}
+
+/** Version-control history for a file (chain of merges + publishes). */
+export async function getFileHistory(path: string): Promise<FileHistory> {
+  if (DEMO) return demo.getFileHistory(path);
+  const res = await fetch(`${apiBase()}/api/context/history?path=${encodeURIComponent(path)}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to load history: ${res.status}`);
+  return (await res.json()) as FileHistory;
+}
+
+/** History of a single line (the chain of edits to it). */
+export async function getLineHistory(path: string, blockText: string): Promise<HistoryEvent[]> {
+  if (DEMO) return demo.getLineHistory(path, blockText);
+  const res = await fetch(
+    `${apiBase()}/api/context/history/line?path=${encodeURIComponent(path)}&block=${encodeURIComponent(blockText)}`,
+    { cache: "no-store" },
+  );
+  if (!res.ok) throw new Error(`Failed to load line history: ${res.status}`);
+  return (await res.json()) as HistoryEvent[];
 }
 
 /** Configured eval definitions per source (the merge gate). */

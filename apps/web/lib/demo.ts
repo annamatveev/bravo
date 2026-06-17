@@ -18,7 +18,9 @@ import type {
   EvalDefinition,
   EvalReport,
   EvalsConfig,
+  FileHistory,
   FileInsight,
+  HistoryEvent,
   FreshnessState,
   HealthOverview,
   FreshnessOverview,
@@ -450,6 +452,37 @@ const EVALS: EvalReport = {
   ],
 };
 
+// Version-control history — the chain of merges + publishes, like git log.
+const FILE_HISTORY: Record<string, HistoryEvent[]> = {
+  "policies/refunds.md": [
+    { id: "h-pub", type: "publish", date: ago(1), title: "Published to agents", version: "9fba0411301e56a5" },
+    { id: "h-credit", type: "merge", date: ago(8), title: "Document store-credit fallback", authorName: "Refund Resolution Agent", authorKind: "agent", prId: "pr-agent-x1", summary: { added: 1, removed: 0, modified: 0 } },
+    { id: "h-elig", type: "merge", date: ago(25), title: "Clarify eligibility wording", authorName: "Dana Levi", authorKind: "human", summary: { added: 0, removed: 0, modified: 1 } },
+    { id: "h-window", type: "merge", date: ago(40), title: "Tighten digital refund window 14 → 7 days", authorName: "Dana Levi", authorKind: "human", prId: "pr-000", summary: { added: 0, removed: 0, modified: 1 } },
+    { id: "h-init", type: "merge", date: ago(75), title: "Establish refund policy", authorName: "Dana Levi", authorKind: "human", prId: "pr-000", summary: { added: 6, removed: 0, modified: 0 } },
+  ],
+  "policies/shipping.md": [
+    { id: "h-ship-intl", type: "merge", date: ago(9), title: "Add international shipping note", authorName: "Refund Resolution Agent", authorKind: "agent", summary: { added: 1, removed: 0, modified: 0 } },
+    { id: "h-ship-init", type: "merge", date: ago(60), title: "Establish shipping policy", authorName: "Dana Levi", authorKind: "human", summary: { added: 4, removed: 0, modified: 0 } },
+  ],
+};
+const fileHistoryFor = (path: string): HistoryEvent[] =>
+  FILE_HISTORY[path] ?? [
+    { id: `h-${hash(path)}`, type: "merge", date: ago(50), title: "Create file", authorName: OWNER.name, authorKind: "human", summary: { added: 3, removed: 0, modified: 0 } },
+  ];
+
+// Per-line history (the chain of edits to one line), keyed by exact text.
+const LINE_HISTORY: Record<string, HistoryEvent[]> = {
+  "Digital goods are refundable within 14 days of purchase.": [
+    { id: "lh-confirm", type: "merge", date: ago(8), title: "Agent re-confirmed the 14-day digital window", authorName: "Refund Resolution Agent", authorKind: "agent", prId: "pr-agent-x1" },
+    { id: "lh-init", type: "merge", date: ago(75), title: "Established in the refund policy", authorName: "Dana Levi", authorKind: "human", prId: "pr-000" },
+  ],
+};
+const lineHistoryFor = (text: string): HistoryEvent[] =>
+  LINE_HISTORY[text] ?? [
+    { id: `lh-${hash(text)}`, type: "merge", date: ago(50), title: "Part of the original document", authorName: OWNER.name, authorKind: "human", prId: "pr-000" },
+  ];
+
 // Per-source eval definitions — the merge gate for each source, not just context.
 const EVAL_DEFS: EvalDefinition[] = [
   { id: "ctx-window", source: "context", name: "Standard refund window stated", question: "What is the standard refund window?", expectContains: ["30 days"], required: true, lastStatus: "pass" },
@@ -646,6 +679,8 @@ export const demo = {
   getEvals: async (): Promise<EvalReport> => EVALS,
   getEvalDefinitions: async (): Promise<EvalsConfig> => ({ definitions: EVAL_DEFS }),
   updateEvalDefinition: async (): Promise<{ ok: true }> => ({ ok: true }),
+  getFileHistory: async (path: string): Promise<FileHistory> => ({ path, events: fileHistoryFor(path) }),
+  getLineHistory: async (_path: string, blockText: string): Promise<HistoryEvent[]> => lineHistoryFor(blockText),
   submitApproval: async () => ({ ok: true as const, data: { pr: { ...PR_001, status: "merged" as const }, merged: true } }),
   getAuthConfig: async (): Promise<AuthConfig> => ({ googleEnabled: false, pickUserEnabled: true }),
   getUsers: async (): Promise<SessionUser[]> => [OWNER, REVIEWER],

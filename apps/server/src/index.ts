@@ -11,6 +11,7 @@ import { createHealthRouter } from "./routes/health.js";
 import { createInsightsRouter } from "./routes/insights.js";
 import { createSuggestionsRouter } from "./routes/suggestions.js";
 import { createEvalsRouter } from "./routes/evals.js";
+import { createHistoryRouter } from "./routes/history.js";
 import { createAuthRouter } from "./routes/auth.js";
 import { WorkspaceManager } from "./services/WorkspaceManager.js";
 import { SigningService } from "./services/SigningService.js";
@@ -41,6 +42,7 @@ async function main() {
   app.use("/api/context/insights", createInsightsRouter(wm));
   app.use("/api/context/suggestions", createSuggestionsRouter(wm));
   app.use("/api/context/evals", createEvalsRouter(wm));
+  app.use("/api/context/history", createHistoryRouter(wm));
 
   app.listen(PORT, () => {
     console.log(`[context-studio] server listening on http://localhost:${PORT}`);

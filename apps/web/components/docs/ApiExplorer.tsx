@@ -10,6 +10,7 @@ import {
   getDocumentView,
   getEvalDefinitions,
   getEvals,
+  getFileHistory,
   getFreshnessOverview,
   getHealth,
   getInsights,
@@ -84,6 +85,7 @@ const ENDPOINTS: Endpoint[] = [
   },
 
   { id: "docView", method: "GET", path: "/api/context/doc/view", summary: "Document content + per-block attribution and usage.", auth: "none", area: "Library", params: [{ name: "path", def: "policies/refunds.md", in: "query" }], runnable: true },
+  { id: "history", method: "GET", path: "/api/context/history", summary: "A file's change history (merges + publishes).", auth: "none", area: "Library", params: [{ name: "path", def: "policies/refunds.md", in: "query" }], runnable: true },
 
   { id: "workspace", method: "GET", path: "/api/context/workspace", summary: "Active workspace + its bound sources.", auth: "none", area: "Workspace", runnable: true },
   { id: "distribution", method: "GET", path: "/api/context/distribution", summary: "Published per-agent bundle status.", auth: "none", area: "Distribution", runnable: true },
@@ -113,6 +115,7 @@ async function invoke(ep: Endpoint, inputs: Record<string, string>): Promise<unk
     case "distribution": return getDistribution();
     case "workspace": return getWorkspace();
     case "docView": return getDocumentView(inputs.path || "policies/refunds.md", as);
+    case "history": return getFileHistory(inputs.path || "policies/refunds.md");
     case "suggestions": return createSuggestion(JSON.parse(inputs.body || "{}"), authHeaders());
     default: throw new Error("This endpoint isn't runnable in the browser — use the cURL snippet.");
   }

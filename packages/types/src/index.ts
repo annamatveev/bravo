@@ -557,6 +557,35 @@ export interface UpdateEvalBody {
 }
 
 // ---------------------------------------------------------------------------
+// History (version control — the chain of merges + publishes)
+// ---------------------------------------------------------------------------
+
+export type HistoryEventType = "merge" | "publish";
+
+/** One point in a file's (or line's) history — a merged change or a publish. */
+export interface HistoryEvent {
+  id: string;
+  type: HistoryEventType;
+  /** ISO timestamp. */
+  date: string;
+  title: string;
+  authorName?: string;
+  authorKind?: AuthorKind;
+  /** The change request, for merge events (links to its semantic diff). */
+  prId?: string;
+  /** Block-change summary for merge events. */
+  summary?: { added: number; removed: number; modified: number };
+  /** Content-hash version, for publish events. */
+  version?: string;
+}
+
+/** A file's history, newest event first. */
+export interface FileHistory {
+  path: string;
+  events: HistoryEvent[];
+}
+
+// ---------------------------------------------------------------------------
 // Distribution (Module 6 — publishing signed per-agent slices)
 // ---------------------------------------------------------------------------
 

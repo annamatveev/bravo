@@ -9,8 +9,9 @@ import { authHeaders, getSession } from "@/lib/auth";
 import { parseBlocks, blockKey, type ClientBlock } from "@/lib/blocks";
 import { relativeTime } from "@/components/cpr/ui";
 import { SourceChip } from "@/components/ui/SourceChip";
+import { FileHistoryView, LineHistoryModal } from "@/components/history/History";
 
-type Mode = "edit" | "source";
+type Mode = "edit" | "source" | "history";
 type SaveState = "idle" | "saving" | "saved" | "error";
 type AnnoStyle = "mark" | "strike" | "replace";
 type ComposeMode = "note" | "edit" | "add";
@@ -91,6 +92,7 @@ export function Editor({
   const [draftPrId, setDraftPrId] = useState<string | undefined>(doc.draftPrId);
   const [showPropose, setShowPropose] = useState(false);
   const [showBlame, setShowBlame] = useState(false);
+  const [lineHist, setLineHist] = useState<{ path: string; text: string } | null>(null);
 
   const [annos, setAnnos] = useState<Anno[]>([]);
   const [sel, setSel] = useState<{ blockIdx: number; quote: string; x: number; y: number } | null>(null);
@@ -199,7 +201,7 @@ export function Editor({
         )}
         <div className="ml-auto flex items-center gap-2">
           <div className="inline-flex rounded-lg border border-line bg-surface p-0.5 text-sm">
-            {(["edit", "source"] as Mode[]).map((m) => (
+            {(["edit", "source", "history"] as Mode[]).map((m) => (
               <button
                 key={m}
                 onClick={() => setMode(m)}
@@ -249,6 +251,10 @@ export function Editor({
               spellCheck={false}
               className="h-full w-full resize-none bg-transparent p-4 font-mono text-sm leading-relaxed text-ink focus:outline-none"
             />
+          ) : mode === "history" ? (
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+              <FileHistoryView path={currentPath} />
+            </div>
           ) : (
             <>
               <div className="shrink-0 border-b border-line px-4 py-2">
@@ -269,6 +275,7 @@ export function Editor({
                       onNote={blockNote}
                       onDelete={blockDelete}
                       onAdd={blockAdd}
+                      onLineHistory={(text) => setLineHist({ path: currentPath, text })}
                     />
                   ))}
                 </article>
@@ -335,6 +342,10 @@ export function Editor({
           onProposed={(prId) => router.push(`/pr/${prId}`)}
         />
       )}
+
+      {lineHist && (
+        <LineHistoryModal path={lineHist.path} text={lineHist.text} onClose={() => setLineHist(null)} />
+      )}
     </div>
   );
 }
@@ -399,6 +410,7 @@ function Block({
   onNote,
   onDelete,
   onAdd,
+  onLineHistory,
 }: {
   idx: number;
   block: ClientBlock;
@@ -410,6 +422,7 @@ function Block({
   onNote: (idx: number, text: string) => void;
   onDelete: (idx: number, text: string) => void;
   onAdd: (idx: number) => void;
+  onLineHistory: (text: string) => void;
 }) {
   const conf = attribution?.confidence;
   const meta = conf ? CONF[conf] : null;
@@ -463,6 +476,13 @@ function Block({
                 <Link href={`/pr/${attribution.prId}`} className="mt-1.5 block font-medium text-brand hover:underline">
                   {attribution.prTitle} ({attribution.prId}) →
                 </Link>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => onLineHistory(block.text)}
+                  className="mt-1 block font-medium text-brand hover:underline"
+                >
+                  Line history →
+                </button>
               </span>
             )}
           </span>
